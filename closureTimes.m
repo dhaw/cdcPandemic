@@ -2,11 +2,11 @@ function f=closureTimes(params)
 close=7*(0:8);
 lc=length(close);
 c=cell(lc,1);
-basePlot=pandemic1Dall(params,0,0,0,10^4);
+basePlot=pandemic1Dall2(params,0,0,0,10^4);
 tswitch=params(2);
 for i=1:lc
     tclosei=tswitch+close(i);
-    ploti=pandemic1Dall(params,0,0,0,tclosei);
+    ploti=pandemic1Dall2(params,0,0,0,tclosei);
     c{i}=ploti;%(ploti(:,1)>=tclosei,:);
 end
 
