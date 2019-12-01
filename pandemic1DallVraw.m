@@ -1,4 +1,4 @@
-function [f,g,z2]=pandemic1DallV(params,xdata,plotComp,plotEpis,ydata)%(R0,phi1,phi2,tlag,seednum,tswitch,closureFactor,betacModifier)
+function f=pandemic1DallVraw(params,xdata,plotComp,plotEpis,ydata)%(R0,phi1,phi2,tlag,seednum,tswitch,closureFactor,betacModifier)
 %V: antiViral treatment
 %plotComp: plot comparison (with data)
 %plotEpis: plot incidence (non-aggregated)
@@ -8,21 +8,20 @@ function [f,g,z2]=pandemic1DallV(params,xdata,plotComp,plotEpis,ydata)%(R0,phi1,
 %plotEpis=1;
 logPlots=0;
 byAge=1;
-relInc=1;%Relative incidence - fraction of age group population
 t1=1;%Plot data from month t1
 %%
 %Fixed parameters:
 R0modifier=1;%/.775;
 R0=1.4*R0modifier;
-seednum=2.9615;%2.9994;%3;
+seednum=3;
 tswitch=243;%220;
 betacModifier=1;%.9;
-closureFactor=.5578;%.587;%1;
+closureFactor=1;
 monthShift=-1;
 seasonality=1;
 ftimes=1;
 tclose=10^4;
-phi1=1;%.9827;
+phi1=1;
 phi2=0;
 tlag=0;%Days
 gamma=1/2.6;
@@ -30,26 +29,22 @@ tau=0;
 tv=243;%400;
 %%
 %Input parameters:
-%seednum=params(1);
-%closureFactor=params(2);
-%tswitch=params(3);
-%phi1=params(4);
-%phi2=params(3);
+seednum=params(1);
+%tswitch=params(2);
+phi1=1;%params(2);
+phi2=1-phi1;%params(3);
 %betacModifier=params(2);
-R0=params(1);
-gamma=params(2);
+closureFactor=params(2);
+%R0=params(5);
 %monthShift=params(4);
 %ftimes=params(3);
 %tau=params(4);
-phi2=1-phi1;
 %%
-%gamma=1/TR;
 gammabar=1/(1/gamma-1/tau-1);
 hosp=[.042,.016,.029,.166]';
 death=[.005,.0072,.04,.079]'/100;
 n=1; nbar=4;
 NNbar=[19169690;62121035;184015269;39570590];
-%NNbar=[19037307;62045041;182377351;38799891];
 NN=sum(NNbar);
 NNrep=repmat(NN,4,1);
 %{
@@ -130,15 +125,11 @@ seed=10^(-seednum);
     Y=Y./repmat(tdiff,1,nbar);
     tout=tout(2:end);
     %Ysum=sum(Y,2)/sum(NN);
-    g=[tout,sum(Y,2)];
-    z2=sum(Y(tout>tswitch,:),1);
-    if relInc==1
     if byAge==1
         NNdiv=repmat(NNbar',size(Y,1),1);
         Y=Y./NNdiv;
     else
         Y=sum(Y,2)/NN;
-    end
     end
     %
     if plotEpis==1

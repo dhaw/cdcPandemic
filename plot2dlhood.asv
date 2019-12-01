@@ -1,6 +1,6 @@
 function f=plot2dlhood(yvec)
 
-p1=2.5:.05:3.5;
+p1=2.5:.01:2.7;
 p2=.05:.01:1;
 lp1=length(p1); lp2=length(p2);
 X=zeros(lp1,lp2);
@@ -11,7 +11,8 @@ for i=1:lp1
 end
 fs=12;
 figure
-imagesc(p1,p2,X')
+[x1,x2]=meshgrid(p1,p2);
+imagesc(x1,p2,X)
 set(gca,'fontsize',fs)
 colorbar
-%caxis([min(min(X)),max(max(X))])
+caxis([-100,100])

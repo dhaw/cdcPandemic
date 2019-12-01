@@ -3,7 +3,7 @@ function f=pdm09fit1d(data)
 xdata=4:7;%Not from 1 - in case truncate 1st month, also to avoid previous season
 ydata=data(xdata,:);
 fun=@(x,xdata)pandemic1DallV(x,xdata,0,0,0);
-x0=[3.2740    0.9284    0.7383];
+x0=[3, .58];
 x=lsqcurvefit(fun,x0,xdata,ydata);
 f=x;
 end

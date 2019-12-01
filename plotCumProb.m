@@ -1,0 +1,44 @@
+function f=plotCumProb(xsto)
+d1=.001; d2=.001;
+cen1=[1.34:d1:1.4]';%Limits as plim1 (MCMC_david)
+cen2=[.33:d2:.5]';
+edges1=cen1-d1; edges1(end+1)=cen1(end)+d1;
+edges2=cen2-d2; edges2(end+1)=cen2(end)+d2;
+l1=length(edges1); l2=length(edges2);
+edges={edges1,edges2};
+%
+qmean=1./[143.4400,364.7100,148.2000,64.6700];%Row - as z2
+Nvec=[0:200:20000]';
+Nmat=repmat(Nvec,1,4);
+lN=length(Nvec);
+X=zeros(l1,l2,lN);
+h=hist3(xsto,'edges',edges);
+figure; hist3(xsto,'edges',edges);
+h=h/sum(sum(h));%Normalised posterior
+for i=1:l1
+    for j=1:l2
+        [~,~,z2]=pandemic1DallV([edges1(i),edges2(j)],4:7,0,0,0);
+        mu=repmat(z2.*qmean,lN,1);%lN times 4
+        sig=mu.*(1-repmat(qmean,lN,1));
+        %sig=sqrt(sig);
+        xij=normcdf(mu-Nmat,mu,sig)*h(i,j);
+        X(i,j,:)=prod(xij,2)*h(i,j);
+    end
+end
+x=sum(sum(X,1),2);
+%}
+%
+fs=12; lw=2;
+lx=size(x,3);
+plotx=zeros(lx,1); plotx(1:end)=x(1,1,:);
+figure
+plot(Nvec,plotx,'k-','linewidth',lw)
+xlabel('N')
+ylabel('P(H>N)')
+set(gca,'fontsize',fs)
+axis tight
+grid on
+grid minor
+box on
+%}
+end

@@ -33,7 +33,7 @@ for i=1:numyears
 end
 
 if byAge==1
-    incScaled=y(:,7)./y(:,8).*y(:,17);%.*y(:,15);%.*y(:,6);%.*y(:,end-1);
+    incScaled=y(:,7).*y(:,17);%./y(:,8).*y(:,17);%.*y(:,15);%.*y(:,6);%.*y(:,end-1);
     tvec1=y(1:4:end,1); tvec2=y(1:4:end,2);
     tvec=1:size(incScaled,1)/4;
 

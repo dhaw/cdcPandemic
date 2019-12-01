@@ -10,15 +10,16 @@ function [xsto, outsto, history, accept_rate]=MCMC_david(yvec)
 
 %MCMC_adaptive(F, x0, n, sigma, fixinds, blockind, displ);
 
-x0=[3,.58];
-n=100;
+%x0=[3,.58];
+x0=[1.39,1/2.6];
+n=10000;
 sigma=1;
 fixinds=[];
 blockind=[];
 displ=false;
 
-plim1=[2,3.5];
-plim2=[.5,1];
+plim1=[1.34,1.4];
+plim2=[.33,.5];
 
 F=@(params)fcn(params,yvec,plim1,plim2);
 [xsto, outsto, history, accept_rate] = MCMC_adaptive(F, x0, n, sigma, fixinds, blockind, displ);

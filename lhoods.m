@@ -20,13 +20,13 @@ qvec=reshape(qvec,na*lx,1);
 
 %params=[factor,.9,.77];
 %params=[3.2740,0.9284,0.7383];
-params=[3.2740,0.9284,factor];
+params=[3,factor];
 
-ydata=ydata./qvec;
+ydata=ydata;%./qvec;
 %f=Lqtheta(qvec,params,xdata,ydata,lx);
 
 ysim=pandemic1DallV(params,xdata,0,0,0);
-ymean=reshape(ysim,na*lx,1);
+ymean=reshape(ysim,na*lx,1).*qvec;
 ysd=sqrt(ymean.*(1-qvec));
 %Normal likelihood:
 L=log(normpdf(ydata,ymean,ysd));

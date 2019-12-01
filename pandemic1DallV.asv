@@ -8,12 +8,13 @@ function f=pandemic1DallV(params,xdata,plotComp,plotEpis,ydata)%(R0,phi1,phi2,tl
 %plotEpis=1;
 logPlots=0;
 byAge=1;
+relInc=1;%Relative incidence - fraction of age group population
 t1=1;%Plot data from month t1
 %%
 %Fixed parameters:
 R0modifier=1;%/.775;
 R0=1.4*R0modifier;
-seednum=8;
+seednum=3;
 tswitch=243;%220;
 betacModifier=1;%.9;
 closureFactor=1;
@@ -27,16 +28,15 @@ tlag=0;%Days
 gamma=1/2.6;
 tau=0;
 tv=243;%400;
-t0=0;
 %%
 %Input parameters:
-t0=params(1);
-%tswitch=params(2);
+seednum=params(1);
+closureFactor=params(2);
+tswitch=params(2);
 phi1=params(2);
-phi2=params(3);
+phi2=1-phi1;%params(3);
 %betacModifier=params(2);
-closureFactor=params(4);
-%R0=params(5);
+%R0=params(3);
 %monthShift=params(4);
 %ftimes=params(3);
 %tau=params(4);
@@ -46,6 +46,7 @@ hosp=[.042,.016,.029,.166]';
 death=[.005,.0072,.04,.079]'/100;
 n=1; nbar=4;
 NNbar=[19169690;62121035;184015269;39570590];
+%NNbar=[19037307;62045041;182377351;38799891];
 NN=sum(NNbar);
 NNrep=repmat(NN,4,1);
 %{
@@ -103,8 +104,7 @@ betac=betao*betacModifier;%Assume R0 fitted to Oct wave
 %d=eigs(Co,1)/gamma; R0o=max(d); betao=R0/R0o;
 %%
 %For simulation:
-%t0=0; 
-tend=720;
+t0=0; tend=720;
 NN0=NNrep; NN0(NNrep==0)=1;
 Ni=repmat(NNrep,1,nbar); Nj=Ni';
 %Dc=(Mjover*Cc).*Nj;
@@ -127,11 +127,13 @@ seed=10^(-seednum);
     Y=Y./repmat(tdiff,1,nbar);
     tout=tout(2:end);
     %Ysum=sum(Y,2)/sum(NN);
+    if relInc==1
     if byAge==1
         NNdiv=repmat(NNbar',size(Y,1),1);
         Y=Y./NNdiv;
     else
         Y=sum(Y,2)/NN;
+    end
     end
     %
     if plotEpis==1
@@ -161,8 +163,7 @@ seed=10^(-seednum);
     end
     %rec0=yout(end,2*nbar+1:end)+yout(end,nbar+1:2*nbar);%Truncation - add infectious to rercovered
     %f=Y;%rec0';
-    tmonth=1+ceil((tout-t0)/30+monthShift);
-    shiftBack=1
+    tmonth=1+ceil(tout/30+monthShift);
     %tmonth(tmonth<1)=1;%Cheating
     if byAge==1
         f1=accumarray(tmonth,Y(:,1));
@@ -220,7 +221,7 @@ seed=10^(-seednum);
         end
     end
     f=fall(xdata,:);
-    %f=reshape(fall(xdata,:),4*length(xdata),1);
+    %f=reshape(fall(xdata,:),4*length(xdata),1);%For MLE
     %f=[tout,Y];
 end
 %%

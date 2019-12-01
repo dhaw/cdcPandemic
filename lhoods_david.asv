@@ -27,8 +27,8 @@ ysd=ymean.*(1-qvec);
 ysd=sqrt(ysd);
 
 %Normal likelihood:
-L=-log(normpdf(ydata,ymean,ysd));
-%L=-log(mvnpdf(ydata,ymean,ysd));
+%L=-log(normpdf(ydata,ymean,ysd));
+L=-log(mvnpdf(ydata,ymean,ysd));
 f=sum(L);
 end
 %{
