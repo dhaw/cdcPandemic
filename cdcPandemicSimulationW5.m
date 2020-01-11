@@ -12,7 +12,8 @@ if ages==4
     Cc=[27.57920413,8.051767033,4.975736133,0.850626995;
         9.165259795,43.43045174,8.195858852,2.158756533;
         5.941537452,5.863025518,14.20166331,5.533694466;
-        0.600583289,0.807369258,1.39444674,7.848296781]';
+        0.600583289,0.807369258,1.39444674,7.848296781];
+    mu=zeros(4,1);
     tdays=30;%Days per month
     simCut=3;%Cut this many months from start of year
     legString={'0-4','5-19','20-64','65+'};
@@ -27,6 +28,7 @@ elseif ages==5
         0.4500    0.4911    2.5900    0.8132    0.3412;
         4.5200    4.9913    5.6500    6.9995    4.3001;
         0.2300    0.2975    0.4300    0.6903    1.8930]';
+    mu=[.005,.0072,.04,.079,1.57]'/100;%Data
     tdays=7;%Days per week
     simCut=16;%Cut this many weeks from start of year
     legString={'0-4','5-17','18-24','25-64','65+'};
@@ -42,32 +44,36 @@ ageInc=1;%Total or age-specific incidence out (before aggregated) - g
 relInc=0;%Relative incidence - fraction of age group population - both
 %%
 %Fixed parameters:
-seednum=4.3926;
+seednum=4;
 %tswitch=243;
-betacModifier=1;
-closureFactor=0.4104;
-immuneFactor=0.6131;%In over 52s (born pre-1957) %W5*
+closureFactor=0.5127;%0.4000;
+betacModifier=0.7822;
+immuneFactor=0;%0.6021;%In over 52s (born pre-1957) %W5*
 tshift=-1;
 seasonality=1;%On
 ftimes=1;
 tclose=10^4;
-%phi1=1;
-phi2=0;%0.0205;
+phi1=1;
+phi2=0;%0.0241;
 tlag=0;%Days
 tau=0;
 tv=0;
-propSym=.55;%Data
-relInf=.5;%Data
-mu=[.005,.0072,.04,.079,1.57]'/100;%Data
+propSym=1;%.55;%Data
+relInf=0;%.5;%Data
 R0=1.9488;%1.46/.775;
 gamma=0.3664;
+t0=0;
+tend=450;
 %%
 %Input parameters:
 %{
-seednum=params(1);
+t0=params(1);
+%seednum=params(1);
+%seedOn=params(2);
 closureFactor=params(2);
-immuneFactor=params(3);%[4,.42,.2,1.38,.38]
+betacModifier=params(3);%[4,.42,.2,1.38,.38]
 %phi2=params(4);
+Cc=reshape(params(4:4+nbar^2-1),5,5);
 %}
 Cc=reshape(params(1:1+nbar^2-1),5,5);
 %}
@@ -76,7 +82,8 @@ Cc=reshape(params(1:1+nbar^2-1),5,5);
 R0=params(end-1);
 gamma=params(end);
 %}
-phi1=1-phi2;
+%phi1=1-phi2;
+seedOn=t0+30;
 %%
 %gamma=1/TR;
 gammabar=1/(1/gamma-1/tau-1);
@@ -86,8 +93,8 @@ NNrep=repmat(NN,nbar,1);
 %Age mixing:
 %USA:
 Co=Cc;
-Cc(2:3,2:3)=closureFactor*Co(2:3,2:3);
-%Cc(2,2)=closureFactor*Co(2,2);
+%Cc(2:3,2:3)=closureFactor/betacModifier*Co(2:3,2:3);
+Cc(2,2)=closureFactor/betacModifier*Co(2,2);
 %Calculate betas:
 %
 Sstart=repmat(NNbar,1,nbar);%Ni
@@ -97,7 +104,7 @@ if foi==1
     Dc=(Sstart.*Mjover).*Cc;
     %Dc=Sstart*Cc/NN;
     Gc=1/gamma*Dc;
-    d=eigs(Gc,1); R0c=max(d); betac=R0/R0c*betacModifier;
+    d=eigs(Gc,1); R0c=max(d); %betac=R0/R0c*betacModifier;
     Do=(Sstart.*Mjover).*Co;
     Go=1/gamma*Do;
     d=eigs(Go,1); R0o=max(d); betao=R0/R0o;
@@ -105,7 +112,7 @@ if foi==1
 else
     Dc=Sstart.*Cc/NN;
     Gc=1/gamma*Dc;
-    d=eigs(Gc,1); R0c=max(d); betac=R0/R0c*betacModifier;
+    d=eigs(Gc,1); R0c=max(d); %betac=R0/R0c*betacModifier;
     Do=(Sstart.*Mjover).*Co;
     Go=1/gamma*Do;
     d=eigs(Go,1); R0o=max(d); betao=R0/R0o;
@@ -130,16 +137,24 @@ betac=betao*betacModifier;%Assume R0 fitted to Oct wave
 %}
 %%
 %For simulation:
-t0=0; tend=450;
 %Ni=repmat(NN0,1,nbar); Nj=Ni';
 if foi==1
+    %
     Dc=Cc;
     Do=Co;
     NN0=NNbar;
     NN0(NN0==1)=1;
-elseif foi==2
+    %}
+    %{
+    %As 4 age-group only, wrong:
     Dc=Cc.*Mjover*NN;
     Do=Co.*Mjover*NN;
+    NN0=NNrep;
+    NN0(NNrep==0)=1;
+    %}
+elseif foi==2
+    Dc=Cc;%.*Mjover*NN;
+    Do=Co;%.*Mjover*NN;
     NN0=NNrep;
     NN0(NNrep==0)=1;
 end
@@ -148,7 +163,7 @@ seed=10^(-seednum);
 %Simulate:
 %ODE solver:
 %if solvetype==2
-    [tout,yout]=ode45(@(t,y)integr8all(t,y,betac,betao,gamma,tau,gammabar,nbar,NN0,Dc,Do,seasonality,phi1,phi2,seed,hosp,tlag,tswitch,tclose,tv,propSym,relInf,mu),[t0,tend],y0);
+    [tout,yout]=ode45(@(t,y)integr8all(t,y,betac,betao,gamma,tau,gammabar,nbar,NN0,Dc,Do,seasonality,phi1,phi2,seed,seedOn,hosp,tlag,tswitch,tclose,tv,propSym,relInf,mu),[t0,tend],y0);
     %Incidence curve in here:
     Y=yout(:,1:nbar);
     Y=-diff(Y,1,1);
@@ -195,7 +210,7 @@ seed=10^(-seednum);
         hold off
     end
     tmonth=ceil(tout/tdays);%+tshift);
-    tmonth(tmonth==0)=1;
+    tmonth(tmonth<=0)=1;
     if byAge==1
         f1=accumarray(tmonth,Y(:,1));
         f2=accumarray(tmonth,Y(:,2));
@@ -277,7 +292,7 @@ seed=10^(-seednum);
     f=fall(xdata,:);
 end
 %%
-function f=integr8all(t,y,betac,betao,gamma,tau,gammabar,nbar,NNin,Dc,Do,seasonality,phi1,phi2,seed,hosp,tlag,tswitch,tclose,tv,propSym,relInf,mu)
+function f=integr8all(t,y,betac,betao,gamma,tau,gammabar,nbar,NNin,Dc,Do,seasonality,phi1,phi2,seed,seedOn,hosp,tlag,tswitch,tclose,tv,propSym,relInf,mu)
 %propSym=.55;%Data
 %relInf=.5;%Data
 %mu=[.005,.0072,.04,.079,1.57]'/100;%Data
@@ -286,7 +301,7 @@ if seasonality==1
 else
     phi=1;
 end
-if t<tswitch || t>tclose
+if t<tswitch || t>tclose% && t>200%
     XX=Dc;
     beta=betac;
 else
@@ -298,7 +313,7 @@ S=y(1:nbar);
 %IV=y(2*nbar+1:3*nbar);
 IS=y(nbar+1:2*nbar);
 IA=y(2*nbar+1:3*nbar);
-if t<30
+if t<seedOn%t>seedOn && t<seedOn+14
     seed1=seed.*S./NNin;
 else
     seed1=0;
