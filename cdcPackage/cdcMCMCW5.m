@@ -1,4 +1,4 @@
-function [xsto, outsto, history, accept_rate]=cdcMCMCW5(ydataNX)
+function [xsto, outsto, history, accept_rate]=cdcMCMCW5(ydataNX,thetac)
 % F:          Function giving log-posterior density for a parameter set x
 % x0:         Initial value of parameter set x
 % n:          Number of iterations
@@ -16,28 +16,38 @@ fixinds=[];
 blockind=[];
 displ=false;
 
-%plim1=[3,6];
-%plim2=[.3,.1];
-plim1=[1.2,1.6];
-plim2=[.25,.5];
-x0=[randic(plim1),randic(plim2)];%,randic(plim3)];%,randic(plim4)];
+plim=[1,3;%min;max
+    .25,.5];
+Cvec=[1.9472    0.4316    0.4571    0.4432    0.1658    1.9350    8.7949    2.4030    1.8097    1.2314    0.4651    0.4938    2.3491    0.8098    0.3408    4.5977    5.0972    5.4579  6.9881    4.2751    0.2365    0.2976    0.4186    0.7152    1.8597]';
+plim=[[.9*Cvec,1.1*Cvec];plim]';
 
-F=@(params)fcn(params,ydataNX,plim1,plim2);%,plim3);%,plim4);
+%x0=randic(plim);
+x0=thetac(4:end);
+
+F=@(params)fcn(params,ydataNX,plim);
 [xsto, outsto, history, accept_rate] = MCMC_adaptive(F, x0, n, sigma, fixinds, blockind, displ);
 end
 
 function f=unif(x,plim)
+val=1./(plim(1,:)-plim(2,:));
+in=(x-plim(1,:)).*(x-plim(2,:));
+in(in>0)=0;
+in(in<0)=1;
+f=val.*in;
+%{
 if (x-plim(1))*(x-plim(2))<0
     f=1/(plim(2)-plim(1));
 else
     f=0;
 end
+%}
 end
 
 function f=randic(plim)
-f=plim(1)+rand*(plim(2)-plim(1));
+f=plim(1,:)+rand(1,size(plim,2)).*(plim(2,:)-plim(1,:));
 end
 
-function f=fcn(params,ydataNX,plim1,plim2)%,plim3)%,plim4)
-f=-cdcLhoodsW5(params,ydataNX)+log(unif(params(1),plim1))+log(unif(params(2),plim2));%+log(unif(params(3),plim3));%+log(unif(params(4),plim4)));
+function f=fcn(params,ydataNX,plim)
+f=-cdcLhoodsW5(params,ydataNX)+sum(log(unif(params,plim)));
+%+log(unif(params(1),plim1))+log(unif(params(2),plim2));%+log(unif(params(3),plim3));%+log(unif(params(4),plim4)));
 end

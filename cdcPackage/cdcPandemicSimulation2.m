@@ -1,23 +1,23 @@
-function [f,g,z2]=cdcPandemicSimulation(params,xdata,plotComp,plotEpis,ydata,tswitch)%(R0,phi1,phi2,tlag,seednum,tswitch,closureFactor,betacModifier)
+function [f,g,z2]=cdcPandemicSimulation2(params,xdata,plotComp,plotEpis,ydata,tswitch,seednum,closureFactor)%(R0,phi1,phi2,tlag,seednum,tswitch,closureFactor,betacModifier)
+tswitchAttack=243;
 %V: antiViral treatment
 %plotComp: plot comparison (with data)
 %plotEpis: plot incidence (non-aggregated)
 %
-tswitchAttack=243;
 %Changes for closure:
 logPlots=0;
-byAge=1;%=0 for global incidence plot, =1 to stratify by age - f
-ageInc=1;%Total or age-specific incidence out (before aggregated) - g
-relInc=0;%Relative incidence - fraction of age group population - both
+byAge=1;%=0 for global incidence plot, =1 to stratify by age
+ageInc=1;%Total or age-specific incidence out
+relInc=1;%Relative incidence - fraction of age group population
 t1=1;%Plot data from month t1
 immuneFactor=0;%In over 52s (born pre-1957)
 %%
 %Fixed parameters:
-R0=1.4;%1.4065;  1.4082;%
-seednum=2.9756;%3.0114;%2.8394;%  3.0071;%
+R0=1.4065;
+%seednum=2.9756;%3.0114;%2.8394;%
 %tswitch=243;%220;
 betacModifier=1;%.9;
-closureFactor=0.5844;%.5778;%.5924;%0.5672;%  0.5819;%
+%closureFactor=0.5844;%.5778;%.5924;%0.5672;%
 monthShift=-1;
 seasonality=1;%On
 ftimes=1;
@@ -25,7 +25,7 @@ tclose=10^4;
 phi1=1;
 %phi2=0;
 tlag=0;%Days
-gamma=.3362;%1/2.6;  0.3626;%
+gamma=.3362;%1/2.6;
 tau=0;
 tv=0;
 %%
@@ -33,12 +33,12 @@ tv=0;
 %{
 seednum=params(1);
 closureFactor=params(2);
-immuneFactor=params(3);
+%immuneFactor=params(3);
 %monthShift=params(3);
 %tswitch=params(3);
 %phi1=params(3);
 %}
-%{
+%
 R0=params(end-1);
 gamma=params(end);
 %}
@@ -97,7 +97,7 @@ betac=betao*betacModifier;%Assume R0 fitted to Oct wave
 %}
 %%
 %For simulation:
-t0=0; tend=450;
+t0=0; tend=720;
 NN0=NNrep; NN0(NNrep==0)=1;
 Ni=repmat(NNrep,1,nbar); Nj=Ni';
 Dc=Cc.*Mjover*NN;
@@ -135,8 +135,6 @@ seed=10^(-seednum);
     else
         Y=sum(Y,2)/NN;
     end
-    elseif byAge==0
-        Y=sum(Y,2);
     end
     %
     if plotEpis==1

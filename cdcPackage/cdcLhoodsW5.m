@@ -1,6 +1,6 @@
 function f=cdcLhoodsW5(params,ydataNX)
 %Input data - hospitalisations (i.e. without multipliers)
-xdata=1:35;%Match MLE
+xdata=1:17;%Match MLE
 lx=length(xdata);
 NNbar=[1464566;3790730;10236474;3984200;2412129];
 nbar=length(NNbar);
@@ -19,7 +19,7 @@ muvec=reshape(repmat(mu,lx,1),nbar*lx,1);
 sigvec=reshape(repmat(sig,lx,1),nbar*lx,1);
 
 ysim=cdcPandemicSimulationW5(params,xdata,0,0,0,243);
-ysim=ysim(xdata,:);%simCut in cdcPandemicSimulationW5
+%ysim=ysim(xdata,:);%simCut in cdcPandemicSimulationW5
 ysim=reshape(ysim,nbar*lx,1);
 
 y=ysim./hosp;

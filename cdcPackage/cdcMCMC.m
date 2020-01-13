@@ -10,17 +10,19 @@ function [xsto, outsto, history, accept_rate]=cdcMCMC(yvec)
 
 %MCMC_adaptive(F, x0, n, sigma, fixinds, blockind, displ);
 
-n=100;
+n=10000;
 sigma=1;
 fixinds=[];
 blockind=[];
 displ=false;
 
-plim1=[1.34,1.4];
-plim2=[.33,.5];
-x0=[randic(plim1),randic(plim2)];
+%plim1=[3,6];
+%plim2=[.3,.1];
+plim1=[1.4,1.6];
+plim2=[.35,.5];
+x0=[randic(plim1),randic(plim2)];%,randic(plim3)];%,randic(plim4)];
 
-F=@(params)fcn(params,yvec,plim1,plim2);
+F=@(params)fcn(params,yvec,plim1,plim2);%,plim3);%,plim4);
 [xsto, outsto, history, accept_rate] = MCMC_adaptive(F, x0, n, sigma, fixinds, blockind, displ);
 end
 
@@ -36,6 +38,6 @@ function f=randic(plim)
 f=plim(1)+rand*(plim(2)-plim(1));
 end
 
-function f=fcn(params,yvec,plim1,plim2)
-f=-cdcLhoods(params,yvec)+log(unif(params(1),plim1))+log(unif(params(2),plim2));
+function f=fcn(params,yvec,plim1,plim2)%,plim3)%,plim4)
+f=-cdcLhoods(params,yvec)+log(unif(params(1),plim1))+log(unif(params(2),plim2));%+log(unif(params(3),plim3));%+log(unif(params(4),plim4)));
 end

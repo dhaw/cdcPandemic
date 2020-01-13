@@ -1,6 +1,6 @@
 function f=cdcLhoods(params,ydata)
 %Input data - hospitalisations (i.e. without multipliers)
-xdata=4:7;%Match MLE
+xdata=4:8;%Match MLE
 lx=length(xdata);
 ydata=ydata(xdata,:);
 ydata=reshape(ydata,4*lx,1);

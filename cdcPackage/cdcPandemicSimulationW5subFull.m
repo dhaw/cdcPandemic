@@ -1,19 +1,17 @@
-function [f,g,z2]=cdcPandemicSimulationW5(params,xdata,plotComp,plotEpis,ydata,tswitch)%(R0,phi1,phi2,tlag,seednum,tswitch,closureFactor,betacModifier)
+function [f,g,z2]=cdcPandemicSimulationW5subFull(params,xdata,plotComp,plotEpis,ydata,tswitch)%(R0,phi1,phi2,tlag,seednum,tswitch,closureFactor,betacModifier)
 %V: antiViral treatment
 %plotComp: plot comparison (with data)
 %plotEpis: plot incidence (non-aggregated)
-foi=1;%1 for (sum I_j)/N, 2 for sum(I_j/N_j)
+foi=1;%1 for sum(I_j/N_j), 2 for (sum I_j)/N
 ages=5;
 if ages==4
     %death=[.005,.0072,.04,.079]'/100;
     hosp=[.042,.016,.029,.166]';
     NNbar=[19169690;62121035;184015269;39570590];
-    nbar=length(NNbar);
     Cc=[27.57920413,8.051767033,4.975736133,0.850626995;
         9.165259795,43.43045174,8.195858852,2.158756533;
         5.941537452,5.863025518,14.20166331,5.533694466;
-        0.600583289,0.807369258,1.39444674,7.848296781];
-    mu=zeros(4,1);
+        0.600583289,0.807369258,1.39444674,7.848296781]';
     tdays=30;%Days per month
     simCut=3;%Cut this many months from start of year
     legString={'0-4','5-19','20-64','65+'};
@@ -21,14 +19,12 @@ if ages==4
     t1=1;%Plot data from month t1
 elseif ages==5
     NNbar=[1464566;3790730;10236474;3984200;2412129];
-    nbar=length(NNbar);
     hosp=1./[393.0256 999.3054 702.6867 406.0680 177.1958]';
     Cc=[1.9200    0.4268    0.4600    0.4434    0.1665;
         1.7600    8.7522    2.4600    1.8630    1.2190;
         0.4500    0.4911    2.5900    0.8132    0.3412;
         4.5200    4.9913    5.6500    6.9995    4.3001;
         0.2300    0.2975    0.4300    0.6903    1.8930]';
-    mu=[.005,.0072,.04,.079,1.57]'/100;%Data
     tdays=7;%Days per week
     simCut=16;%Cut this many weeks from start of year
     legString={'0-4','5-17','18-24','25-64','65+'};
@@ -42,81 +38,57 @@ logPlots=0;
 byAge=1;%=0 for global incidence plot, =1 to stratify by age - f
 ageInc=1;%Total or age-specific incidence out (before aggregated) - g
 relInc=0;%Relative incidence - fraction of age group population - both
+immuneFactor=0;%In over 52s (born pre-1957) %W5*
 %%
 %Fixed parameters:
-seednum=4;
+R0=1.6/.775;%1.4065;  1.4082;%
+seednum=4;%2.9756;
 %tswitch=243;
-closureFactor=0.5127;%0.4000;
-betacModifier=0.7822;
-immuneFactor=0;%0.6021;%In over 52s (born pre-1957) %W5*
+betacModifier=1;
+closureFactor=0.5844;
 tshift=-1;
 seasonality=1;%On
 ftimes=1;
 tclose=10^4;
 phi1=1;
-phi2=0;%0.0241;
+phi2=0;
 tlag=0;%Days
+gamma=.38;%.3362;
 tau=0;
 tv=0;
-propSym=1;%.55;%Data
-relInf=0;%.5;%Data
-R0=1.9488;%1.46/.775;
-gamma=0.3664;
-t0=0;
-tend=450;
+sub=.99;%Relative size of sub-population
+eps=10e-4;%School closure coupling
 %%
 %Input parameters:
-%{
-t0=params(1);
-%seednum=params(1);
-%seedOn=params(2);
+%
+seednum=params(1);
 closureFactor=params(2);
-betacModifier=params(3);%[4,.42,.2,1.38,.38]
-%phi2=params(4);
-Cc=reshape(params(4:4+nbar^2-1),5,5);
-%}
-Cc=reshape(params(1:1+nbar^2-1),5,5);
+immuneFactor=params(3);%[4,.42,.2,1.38,.38]
+%sub=params(4);
+%eps=params(5);
+%monthShift=params(3);
+%tswitch=params(3);
+phi2=params(4);
+phi1=1-phi2;
 %}
 %
 %propSymp=params(end-2);
 R0=params(end-1);
 gamma=params(end);
 %}
-%phi1=1-phi2;
-seedOn=t0+30;
+%phi2=1-phi1;
 %%
 %gamma=1/TR;
 gammabar=1/(1/gamma-1/tau-1);
-%nbar=length(NNbar);
+nbar=length(NNbar);
 NN=sum(NNbar);
 NNrep=repmat(NN,nbar,1);
 %Age mixing:
 %USA:
 Co=Cc;
-%Cc(2:3,2:3)=closureFactor/betacModifier*Co(2:3,2:3);
-Cc(2,2)=closureFactor/betacModifier*Co(2,2);
-%Calculate betas:
-%
-Sstart=repmat(NNbar,1,nbar);%Ni
-Mj=NNbar'; Mj(Mj==0)=1; Mjover=1./Mj;
-Mjover=repmat(Mjover,nbar,1);%1/Nj
-if foi==1
-    Dc=(Sstart.*Mjover).*Cc;
-    %Dc=Sstart*Cc/NN;
-    Gc=1/gamma*Dc;
-    d=eigs(Gc,1); R0c=max(d); %betac=R0/R0c*betacModifier;
-    Do=(Sstart.*Mjover).*Co;
-    Go=1/gamma*Do;
-    d=eigs(Go,1); R0o=max(d); betao=R0/R0o;
-%}
-else
-    Dc=Sstart.*Cc/NN;
-    Gc=1/gamma*Dc;
-    d=eigs(Gc,1); R0c=max(d); %betac=R0/R0c*betacModifier;
-    Do=(Sstart.*Mjover).*Co;
-    Go=1/gamma*Do;
-    d=eigs(Go,1); R0o=max(d); betao=R0/R0o;
-end
+%Cc(2:3,2:3)=closureFactor*Co(2:3,2:3);
+Cc(2,2)=closureFactor*Co(2,2);
+
 if ages==4
     zn=zeros(nbar,1);
     y0=[NNbar;zn;zn;zn;zn];
@@ -132,38 +104,68 @@ elseif ages==5
     a5out=y0(nbar)*immuneFactor;
     y0(5)=y0(5)-a5out; y0(end-nbar)=a5out;
 end
+y0=[sub*y0;(1-sub)*y0];
+
+%Calculate betas:
+%
+NNbar=[sub*NNbar;(1-sub)*NNbar];
+NNrep=[sub*NNrep;(1-sub)*NNrep];
+Sstart=repmat(NNbar,1,2*nbar);%Ni
+Mj=NNbar'; Mj(Mj==0)=1; Mjover=1./Mj;
+Mjover=repmat(Mjover,2*nbar,1);%1/Nj
+if foi==1
+    Dc=(Sstart.*Mjover).*repmat(Cc,2,2);
+    Dc=Dc.*kron([1,eps;eps,1],ones(nbar));
+    Gc=1/gamma*Dc;
+    d=eigs(Gc,1); R0c=max(d); betac=R0/R0c*betacModifier;
+    Do=(Sstart.*Mjover).*repmat(Co,2,2);
+    %Do=kron(ones(2),Do);
+    Go=1/gamma*Do;
+    d=eigs(Go,1); R0o=max(d); betao=R0/R0o;
+%}
+elseif foi==2
+    Dc=Sstart.*repmat(Cc,2,2)/NN;
+    Dc=Dc.*kron([1,eps;eps,1],ones(nbar));
+    Gc=1/gamma*Dc;
+    d=eigs(Gc,1); R0c=max(d); betac=R0/R0c*betacModifier;
+    Do=(Sstart.*Mjover).*repmat(Co,2,2);
+    %Do=kron(ones(2),Do);
+    Go=1/gamma*Do;
+    d=eigs(Go,1); R0o=max(d); betao=R0/R0o;
+end
+
 betac=betao*betacModifier;%Assume R0 fitted to Oct wave
 %betao=betac;
 %}
 %%
 %For simulation:
+t0=0; tend=450;
 %Ni=repmat(NN0,1,nbar); Nj=Ni';
+%
 if foi==1
-    %
-    Dc=Cc;
-    Do=Co;
+    Dc=kron([1,eps;eps,1],Cc);
+    Do=repmat(Co,2,2);
     NN0=NNbar;
     NN0(NN0==1)=1;
-    %}
-    %{
-    %As 4 age-group only, wrong:
-    Dc=Cc.*Mjover*NN;
-    Do=Co.*Mjover*NN;
-    NN0=NNrep;
-    NN0(NNrep==0)=1;
-    %}
 elseif foi==2
-    Dc=Cc;%.*Mjover*NN;
-    Do=Co;%.*Mjover*NN;
+    Dc=kron([1,eps;eps,1],Cc).*Mjover*NN;
+    Do=repmat(Co,2,2).*Mjover*NN;
     NN0=NNrep;
     NN0(NNrep==0)=1;
 end
+%}
 seed=10^(-seednum);
+%%
+%Do=kron(ones(2),Do);
+%Dc=kron([1,eps;eps,1],Dc);
+%NNbar=[sub*NNbar;(1-sub)*NNbar];
+%NN0=[sub*NN0;(1-sub)*NN0];
+%y0=[sub*y0;(1-sub)*y0];
 %%
 %Simulate:
 %ODE solver:
 %if solvetype==2
-    [tout,yout]=ode45(@(t,y)integr8all(t,y,betac,betao,gamma,tau,gammabar,nbar,NN0,Dc,Do,seasonality,phi1,phi2,seed,seedOn,hosp,tlag,tswitch,tclose,tv,propSym,relInf,mu),[t0,tend],y0);
+    [tout,yout]=ode45(@(t,y)integr8all(t,y,betac,betao,gamma,tau,gammabar,nbar,NN0,Dc,Do,seasonality,phi1,phi2,seed,hosp,tlag,tswitch,tclose,tv),[t0,tend],y0);
     %Incidence curve in here:
     Y=yout(:,1:nbar);
     Y=-diff(Y,1,1);
@@ -210,7 +212,7 @@ seed=10^(-seednum);
         hold off
     end
     tmonth=ceil(tout/tdays);%+tshift);
-    tmonth(tmonth<=0)=1;
+    tmonth(tmonth==0)=1;
     if byAge==1
         f1=accumarray(tmonth,Y(:,1));
         f2=accumarray(tmonth,Y(:,2));
@@ -292,29 +294,31 @@ seed=10^(-seednum);
     f=fall(xdata,:);
 end
 %%
-function f=integr8all(t,y,betac,betao,gamma,tau,gammabar,nbar,NNin,Dc,Do,seasonality,phi1,phi2,seed,seedOn,hosp,tlag,tswitch,tclose,tv,propSym,relInf,mu)
-%propSym=.55;%Data
-%relInf=.5;%Data
-%mu=[.005,.0072,.04,.079,1.57]'/100;%Data
+function f=integr8all(t,y,betac,betao,gamma,tau,gammabar,nbar,NNin,Dc,Do,seasonality,phi1,phi2,seed,hosp,tlag,tswitch,tclose,tv)
+propSym=.55;%Data
+relInf=.5;%Data
+mu=[.005,.0072,.04,.079,1.57]'/100;%Data
+mu=repmat(mu,2,1);
 if seasonality==1
     phi=phi1-phi2*cos(pi*(t-tlag)/180);
 else
     phi=1;
 end
-if t<tswitch || t>tclose% && t>200%
+if t<tswitch || t>tclose
     XX=Dc;
     beta=betac;
 else
     XX=Do;
     beta=betao;
 end
-S=y(1:nbar);
+S=[y(1:nbar);y(5*nbar+1:6*nbar)];
 %I=y(nbar+1:2*nbar);
 %IV=y(2*nbar+1:3*nbar);
-IS=y(nbar+1:2*nbar);
-IA=y(2*nbar+1:3*nbar);
-if t<seedOn%t>seedOn && t<seedOn+14
+IS=[y(nbar+1:2*nbar);y(6*nbar+1:7*nbar)];
+IA=[y(2*nbar+1:3*nbar);y(7*nbar+1:8*nbar)];
+if t<30
     seed1=seed.*S./NNin;
+    seed1(5*nbar+1:end)=0;%Seed onbly sub population
 else
     seed1=0;
 end
@@ -337,5 +341,6 @@ IAdot=(1-propSym)*Sfoi-gamma*IA;
 %IVdot=.55*taux*I.*hosp-gammabar*IV;
 Rdot=gamma*(IS+IA);%+gammabar*IV;
 Ddot=mu.*IS;
-f=[Sdot;ISdot;IAdot;Rdot;Ddot];
+f=[Sdot(1:nbar);ISdot(1:nbar);IAdot(1:nbar);Rdot(1:nbar);Ddot(1:nbar);
+    Sdot(nbar+1:end);ISdot(nbar+1:end);IAdot(nbar+1:end);Rdot(nbar+1:end);Ddot(nbar+1:end)];
 end
