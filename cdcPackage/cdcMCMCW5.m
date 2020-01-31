@@ -16,11 +16,27 @@ fixinds=[];
 blockind=[];
 displ=false;
 
-plim=[1,3;%min;max
-    .25,.5];
-Cvec=[1.9472    0.4316    0.4571    0.4432    0.1658    1.9350    8.7949    2.4030    1.8097    1.2314    0.4651    0.4938    2.3491    0.8098    0.3408    4.5977    5.0972    5.4579  6.9881    4.2751    0.2365    0.2976    0.4186    0.7152    1.8597]';
-plim=[[.9*Cvec,1.1*Cvec];plim]';
-
+%plim=[1,.0;
+    %1,0;
+    %1,0;
+    plim=[1,0;
+    1,0;
+    140,60;
+    1.7,1.1;%max,min
+    2.2,.25]';
+%{
+Cc=[1.9200    0.4268    0.5260    0.2554    0.1665;
+    1.7600    8.7522    2.2855    1.0876    1.2190;
+    4.0700    4.5939    6.6160    4.5939    2.9494;
+    0.9000    0.8885    1.6180    2.3847    1.6919;
+    0.2300    0.2975    0.5712    0.8756    1.8930]';
+Cvec=reshape(Cc,25,1);
+%}
+Cvec=thetac(4:28)';
+plim=[[1.1*Cvec,.9*Cvec];plim']';
+%plim=[plim(:,1:3)';[1.1*Cvec,.9*Cvec];plim(:,end-4:end)']';
+%}
+    
 %x0=randic(plim);
 x0=thetac(4:end);
 
@@ -34,13 +50,6 @@ in=(x-plim(1,:)).*(x-plim(2,:));
 in(in>0)=0;
 in(in<0)=1;
 f=val.*in;
-%{
-if (x-plim(1))*(x-plim(2))<0
-    f=1/(plim(2)-plim(1));
-else
-    f=0;
-end
-%}
 end
 
 function f=randic(plim)
@@ -48,6 +57,6 @@ f=plim(1,:)+rand(1,size(plim,2)).*(plim(2,:)-plim(1,:));
 end
 
 function f=fcn(params,ydataNX,plim)
-f=-cdcLhoodsW5(params,ydataNX)+sum(log(unif(params,plim)));
+f=-cdcLhoodsTest(params,ydataNX)+sum(log(unif(params,plim)));
 %+log(unif(params(1),plim1))+log(unif(params(2),plim2));%+log(unif(params(3),plim3));%+log(unif(params(4),plim4)));
 end
