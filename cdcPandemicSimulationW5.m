@@ -66,7 +66,7 @@ t0=0;
 tend=450;
 %%
 %Input parameters:
-%{
+%
 t0=params(1);
 %seednum=params(1);
 %seedOn=params(2);

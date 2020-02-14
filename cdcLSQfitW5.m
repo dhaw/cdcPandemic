@@ -16,7 +16,7 @@ fun=@(x,xdata)cdcPandemicSimulationW5(x,xdata,0,0,0,243);
 x0=[3.5,.4,.6,Cparam,1.46/.775,.38];%[3.5,.45,.2,1.34,.38]; [7,.8,.2];
 lb=[2,0,0,Cm,1,.25];%1.2,.25];
 ub=[10,1,1,Cp,3,.5];%,2.5,.5];%1.7,1];
-options=optimset('MaxFunEvals',10000,'MaxIter',10000);
+options=optimset('MaxFunEvals',100000,'MaxIter',100000);
 x=lsqcurvefit(fun,x0,xdata,ydata,lb,ub,options);
 f=x;
 end

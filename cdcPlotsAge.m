@@ -1,6 +1,6 @@
 function f=cdcPlotsAge(x)
 %x=sortrows(x,[2,3]);
-byAge=1;
+byAge=0;
 
 inds09=find(x(:,2)==2009);
 inds10=find(x(:,2)==2010);
@@ -103,14 +103,14 @@ else
     inc2=incScaled(2:4:end);
     inc3=incScaled(3:4:end);
     inc4=incScaled(4:4:end);
-    inc=(inc1+inc2+inc3+inc4)./pop;
+    inc=(inc1+inc2+inc3+inc4);%./pop;
 
     f=inc;
 
     jans=tvec(tvec2==1);%-.5;
     ljans=length(jans);
     fs=12; lw=2;
-    ticks=[1,13,25];
+    ticks=[];%[1,13,25];
     labs={'01/09','01/10','01/11'};
     %
     figure
@@ -119,7 +119,7 @@ else
     for j=1:ljans
         plot([jans(j),jans(j)],[0,mx],'k--','linewidth',lw)
     end
-    plot(tvec,inc,'-','linewidth',lw);
+    plot(tvec(4:12),inc(4:12),'k-','linewidth',lw);
     %Manual (for plotting):
     %plot(tvec(5:12),incScaled(5:12),'-','linewidth',lw+1)
     hold off
