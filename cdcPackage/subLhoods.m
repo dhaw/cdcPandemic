@@ -1,16 +1,25 @@
-function f=cdcLhoodsTest(params,ydataNX)
+function f=subLhoods(NNbar,params,xdata,ydataNX)
 %Input data - hospitalisations (i.e. without multipliers)
+thresh=50;
+%Fit to subset of data:
+threshl=17;%Lower (included in fit)
+threshu=52;%Upper
+ydataNX(xdata<threshl,:)=[];
+xdata(xdata<threshl)=[];
+
+ydataNX(xdata>threshu,:)=[];
+xdata(xdata>threshu)=[];
+
 totalInc=0;
-xdata=1:36;%[1:15,24:30];%Match MLE
 lx=length(xdata);
-NNbar=[1464566;3790730;10236474;3984200;2412129];
+%NNbar=[1464566;3790730;10236474;3984200;2412129];
 nbar=length(NNbar);
-ydataNX=ydataNX(xdata,:);
+%ydataNX=ydataNX(xdata,:);
 
 mu=[393.0256 999.3054 702.6867 406.0680 177.1958];
 sig=[129.6984 329.7708 231.8866 134.0024 58.4746];
 
-ysim=cdcPandemicSimulationW5(params,xdata,0,0,0,243);
+ysim=subPandemicSimulation(NNbar,params,xdata,0,0,0,243);
 %{
 %Eliminate age group(s):
 ageOut=5;
@@ -36,7 +45,6 @@ end
 y=y./hosp;
 y(hosp==0)=0;
 %
-thresh=100;
 x=zeros(lx*nbar,1);
 %x(y<thresh)=1;
 x(hosp<thresh)=1;
