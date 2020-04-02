@@ -1,18 +1,21 @@
-function [f,g,D]=seasonal1subAgeCovid19(gamma,n,nbar,na,NN,NNbar,NNrep,minNind,maxNind,maxN,Kbar,K1,Cbar,betaS,betaI,betaD,beta3)
+function [f,g,D]=seasonal1subAgeCovid19(sigma,omega,gamma,hosp,mu,pvec,qvec,n,nbar,na,NN,NNbar,NNrep,minNind,maxNind,maxN,Kbar,K1,Cbar,betaS,betaI,betaD,beta3)
 isdual=1;
 solvetype=2;
-numseed=10^(-8);
+numseed=8;
+phi1=1; phi2=0;
 eps=0;
 randic=0;
 tauend=1;
 randFact=0;
 %%
 %info1: (wave/info project)
+%{
 mcmc=1;
 age2mats=0;
 y0in=0; 
 t0shift=0;
 t0shift=tswitch-params(end-2)+120;
+%}
 %{
 %W2 only:
 y0in=ydata(xdata<18,:);
@@ -39,7 +42,7 @@ plotTau=0;
 time=(1:tauend);
 lt=length(time);
 t0=0; tend=480;
-mu=1/80;%In ODE code
+%mu=1/80;%In ODE code
 phi1=1; phi2=0;
 NN0=NNrep; NN0(NNrep==0)=1;
 Nages=NNbar./NN0;
@@ -189,7 +192,7 @@ seedvec=zeros(nbar,1); seedvec(2*n+1:3*n)=seed*ones(n,1);
 thresh=0;%Remove from ODE solver
 %%
 %SIMULATE (UP TO ATTACK RATES):
-for t=1:lt    
+for t=1:lt%t=tau
 if solvetype==1
     %Final size:
     addbit=0;%seed;%tend*
@@ -199,11 +202,11 @@ if solvetype==1
     funt=@(Zi)solveZi(Zi,Z0,beta,gamma,D,Nages,addbit);
     Zsol=fsolve(funt,IC,options);
 else%solvetype=2/3
-    epidemic=simulate1subAgeCovid19(beta,p,sigma,omega,q,gamma,h,mu,tvec,Dvec);
+    [DEout,Rout]=simulate1subAgeCovid19(sigma,omega,gamma,hosp,mu,pvec,qvec,beta,tvec,Dvec,n,nbar,NNbar,NN0,phi1,phi2,seedvec,NNbar,t);%S0=NNbar (2nd last arg)
 end
-nu=Zsol-Z0;
-A1(:,t)=sum(reshape(Zsol./NN0,n,na),2);%Prop immune for spatial cell (before antigenic drift)
-A2(:,t)=sum(reshape(nu./NN0,n,na),2);%AR for spatial cell
+%nu=Zsol-Z0;
+A1=DEout;%(:,t)=sum(reshape(Zsol./NN0,n,na),2);%Prop immune for spatial cell (before antigenic drift)
+A2=Rout;%(:,t)=sum(reshape(nu./NN0,n,na),2);%AR for spatial cell
 %%
 if tauend>1
     %ASSIGNING IMMUNITY:

@@ -1,4 +1,4 @@
-function [gamma,NN,n,nbar,na,NNbar,NNrep,minNind,maxNind,maxN,Kbar,K1,Cbar,betaS,betaI,betaD,beta3,ages0]=prepFluAgeLocsCovid19(locs,D,stoch,delta)%,U)
+function [sigma,omega,gamma,hvec,muvec,pvec,qvec,NN,n,nbar,na,NNbar,NNrep,minNind,maxNind,maxN,Kbar,K1,Cbar,betaS,betaI,betaD,beta3,ages0]=prepFluAgeLocsCovid19(locs,D,stoch,delta,hvec,muvec)%,U)
 %stoch=1 for SCM(/ABM)
 %Parameters:
 aa=.58;
@@ -13,30 +13,31 @@ pU=2.7;
 %
 %COVID19:
 %gamma=1/2.6;
-Texp=5;
-
-pvec=[.55,.5];
-qvec=1./[2,1];
+pvec=[.5,.5,.5,.5];
+qvec=[0,0];%Control
 Texp=4;%Latent
-%TserInt=6.48;%Serial interval
-%Tinf=TserInt-Texp;
-Tonset=1;
-Tinf=[2,2,3,2,5,10];%1/gammas
-Thosp=[1,1,8];%1/h's
-Tdeath=[10,5,2];%Death after hospitalisation - allows for prolonged illness
+Tonset=5-Texp;%Onset delay - Texp
+TserInt=7;
+Tinf1=TserInt-Texp;
+Thosp=20;
+Tinf=[Tinf1,Tinf1-Tonset,Thosp,1,1];%1/gammas
+%Thosp=[3,6,9.6];%1/h's
+%Tdeath=[5,6,10];
+%Tdeath(3)=Admission/death delay - admission/critical delay
+%Death after hospitalisation - allows for prolonged illness - ?
 %
 sigma=1/Texp;
 omega=1/Tonset;
 gamma=1./Tinf;
-hosp=1./Thosp;
-mu=1./Tdeath;
-gammaEff=mean(gamma);%CRUDE! %1/(p(1)*(Ti1+Ti2+Ti3+q(1)*Ti4+Ti5)+(p(2)+p(3))*Tinf1);
+%hosp=1./Thosp;
+%mu=1./Tdeath;
+gammaEff=gamma(1);%1/(p(1)*(Ti1+Ti2+Ti3+q(1)*Ti4+Ti5)+(p(2)+p(3))*Tinf1);
 %
 celldist=1;%km
 a1immobile=0;
 normaliseKernel=1;
 ageSpec=0;%Chinese K only - not Truscott
-R0=1.8;%.0005;
+R0=2;%.0005;
 testK=0;%For test cases of K (e.g. random)
 %Adult/child/rural/urban
 aaA=.58;
@@ -73,6 +74,9 @@ Ca=C; Cb=C;
 nbar=n*na;
 NN=sum(D,2);
 NNbar=reshape(D,nbar,1);
+%%
+%Debug stuff:
+%hvec=zeros(nbar,1);
 %%
 %Kernel:
 L=locs*140;%Approx conversion to km

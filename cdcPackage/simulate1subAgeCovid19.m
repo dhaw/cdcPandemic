@@ -1,14 +1,26 @@
-function f=simulate1subAgeCovid19(beta,p,sigma,omega,q,gamma,h,mu,tvec,Dvec)
+function [DEout,Rout]=simulate1subAgeCovid19(sigma,omega,gamma,hosp,mu,pvec,qvec,beta,tvec,Dvec,n,nbar,NNbar,NN0,phi1,phi2,seedvec,S0,tau)
 solvetype=2;
+plotTau=1;%Plot this year
+zn=zeros(nbar,1);
 if solvetype==2
     lt=length(tvec);
     t0=tvec(1);%tvec(1)=start time for while simulation
-    y0=[S0;zn;NNbar-S0];
-    for i=1:lt
+    y0=[S0;repmat(zn,11,1);NNbar-S0];
+    toutAll=[];
+    Sout=[];
+    DEout=zeros(nbar,lt);
+    Rout=DEout;
+    for i=1:lt-1
         D=Dvec(:,:,i);
         tend=tvec(i+1);
-        soFar=integr8(t0,tend,y0,beta,params,D);
-        
+        [tout,Sclass,DEcum,Rcum,y0]=integr8(sigma,omega,gamma,hosp,mu,pvec,qvec,beta,nbar,NN0,D,phi1,phi2,seedvec,t0,tend,y0);
+        toutAll=[toutAll;tout];
+        Sout=[Sout;Sclass];
+        DEout(:,i)=DEcum;
+        Rout(:,i)=Rcum;
+        if tau==plotTau
+            plotEpi(tout,Sout,n);
+        end
         t0=tend;
     end
 elseif solvetype==1
@@ -19,64 +31,64 @@ elseif solvetype==3
 end
 end
 
-function f=integr8(plotTau)
-    [tout,yout]=ode45(@(t,y)integr8covid(t,y,beta,gamma,nbar,NN0,D,phi1,phi2,seedvec);
-    if plotTau>0
-        plotEpi(tout,yout,plotTau);
-    end
+function [tout,Sclass,DEcum,Rcum,y0new]=integr8(sigma,omega,gamma,hosp,mu,pvec,qvec,beta,nbar,NN0,D,phi1,phi2,seedvec,t0,tend,y0)
+%ncomps=13;%Number of compartments
+    [tout,yout]=ode45(@(t,y)integr8covid(t,y,sigma,omega,gamma,hosp,mu,pvec,qvec,beta,nbar,NN0,D,phi1,phi2,seedvec),[t0,tend],y0);
+    Sclass=yout(:,1:nbar);%Incidence
+    DEcum=yout(end,11*nbar+1:12*nbar);%Deaths
+    Rcum=yout(end,12*nbar+1:end);
+    y0new=yout(end,:)';
 end
 
 
-function f=plotEpi(tout,yout,plotTau)
+function f=plotEpi(tout,Y,n)
 solvetype=2;
+tend=360;%For plot only
+na=size(Y,2)/n;
 if solvetype==2
-    %[tout,yout]=ode45(@(t,y)integr8covid(t,y,beta,gamma,n,nbar,NN,NN0,D,seed,phi1,phi2,alpha,seedvec),[t0,tend],y0);
-    %Incidence curve in here:
-    %
-    if tau==plotTau
-        figure
-        fs=12; lw=2;
-        Y=yout(:,nbar+1:2*nbar); %Z=yout(:,2*nbar+1:3*nbar);
-        %Y=sum(Y,2);
-        %Y1=Y(:,minNind)+Y(:,minNind+n)+Y(:,minNind+2*n)+Y(:,minNind+3*n); Y1=Y1/NN(minNind);
-        %Y2=Y(:,maxNind)+Y(:,maxNind+n)+Y(:,maxNind+2*n)+Y(:,maxNind+3*n); Y2=Y2/NN(maxNind);
-        Ysum=sum(Y,2);
-        Yall=Y(:,1:n)+Y(:,n+1:2*n)+Y(:,2*n+1:3*n)+Y(:,3*n+1:end);
-        Yall=abs(Yall);%****cheat ;)
-        %
-        %Unlogged plots:
-        hold on
-        %plot(tout,Y1,'--','linewidth',lw,'color',[.165,.31,.431]);%[.165,.31,.431][.447,.553,.647]
-        %plot(tout,Y2,'-','linewidth',lw,'color',[.165,.31,.431]);
-        plot(tout,Ysum,'k','linewidth',lw);
-        plot(tout,Yall);
-        %}
-        %{
-        %Logged plots:
-        semilogy(tout,Ysum,'k','linewidth',lw);
-        hold on
-        semilogy(tout,Yall);
-        %}
-        xlabel('Time (days)','FontSize',fs);
-        ylabel('Prevalence','FontSize',fs);
-        set(gca,'FontSize',fs);
-        maxY=max(Ysum);
-        %axis([0,tend,0,maxY])
-        axis ([0,tend,0,maxY])
-        %legend('Min','Max','location','NE')
-        grid on
-        grid minor
-        hold off
+    Y=-diff(Y,1);
+    tdiff=diff(tout,1);
+    Y=Y./tdiff;
+    tout(1)=[];
+    figure
+    fs=12; lw=2;
+    if na==4
+        Yall=[sum(Y(:,1:n),2),sum(Y(:,n+1:2*n),2),sum(Y(:,2*n+1:3*n),2),sum(Y(:,3*n+1:end),2)];
+    elseif na==5
+        Yall=[sum(Y(:,1:n),2),sum(Y(:,n+1:2*n),2),sum(Y(:,2*n+1:3*n),2),sum(Y(:,3*n+1:4*n),2),sum(Y(:,4*n+1:end),2)];
+    else
+        error('Number of age groups not recognised for plotting')
     end
+    %
+    %Unlogged plots:
+    hold on
+    plot(tout,Yall,'linewidth',lw);
     %}
-    rec0=yout(end,2*nbar+1:end)+yout(end,nbar+1:2*nbar);%******** Truncation - add infectious to rercovered?
-    f=rec0';
+    %{
+    %Logged plots:
+    hold on
+    semilogy(tout,Yall);
+    %}
+    xlabel('Time (days)','FontSize',fs);
+    ylabel('Incidence','FontSize',fs);
+    set(gca,'FontSize',fs);
+    maxY=max(max(Yall));
+    axis ([0,tend,0,maxY])
+    if na==4
+        legend('0-4','5-19','20-64','65+','location','NE')
+    elseif na==5
+        legend('0-4','5-17','18-49','50-64','65+','location','NE')
+    end
+    grid on
+    grid minor
+    box on
+    hold off
 %}
 end
 end
 
 
-function f=integr8covid(t,y,beta,gamma,nbar,NN0,D,phi1,phi2,seedvec)
+function f=integr8covid(t,y,sigma,omega,gamma,h,mu,p,q,beta,nbar,NN0,D,phi1,phi2,seedvec)
 %phi=phi1-phi2*cos(pi*t/180);%Seasonality****
 phi=phi1;
 %%
@@ -84,31 +96,42 @@ S=y(1:nbar);
 E=y(nbar+1:2*nbar);
 Ia=y(2*nbar+1:3*nbar);
 Ip=y(3*nbar+1:4*nbar);
-Iny(4*nbar+1:5*nbar);
-Isy(5*nbar+1:6*nbar);
-Q=y(6*nbar+1:7*nbar);
-Hb=y(7*nbar+1:8*nbar);
-Hv=y(8*nbar+1:9*nbar);
-Ho=y(9*nbar+1:10*nbar);
-DE=y(10*nbar+1:11*nbar);
+Inm=y(4*nbar+1:5*nbar);
+Ism=y(5*nbar+1:6*nbar);
+Ins=y(6*nbar+1:7*nbar);
+Iss=y(7*nbar+1:8*nbar);
+Qm=y(8*nbar+1:9*nbar);
+Qs=y(9*nbar+1:10*nbar);
+H=y(10*nbar+1:11*nbar);
+%H2=y(11*nbar+1:12*nbar);
+I=Ia+Ip+Inm+Ism+Ins+Iss;%All infectious
+%DE=y(10*nbar+1:11*nbar);
 %R=y(11*nbar+1:end);
 %%
-seed1=seedvec.*S./NN0;
+%if t<30
+    seed1=seedvec.*S./NN0;
+%else
+    %seed1=0;
+%end
 Sfoi=phi*(beta*S.*(D*(I./NN0))+seed1);
 %%
 Sdot=-Sfoi;
 Edot=Sfoi-sigma*E;
 Iadot=(1-p(1))*sigma*E-gamma(1)*Ia;
-Ipdot=p(1)*sigma*E-gamma(1)*Ip-omega*Ip;
-Indot=(1-p(2))*omega*Ip-(gamma(2)+q(1))*In;
-Isdot=p(2)*omega*Ip-(gamma(4)+q(2)+h(1)+mu(1))*Is;
-Qdot=q(1)*In+q(2)*Is-(gamma(3)+h(2))*Q;
-Hbdot=h(1)*Is+h(2)*Q-(gamma(5)+h(3)+mu(2))*Hb;
-Hvdot=h(3)*Hb-(h(4)+mu(3))*Hv;
-Ho=h(4)*Hv-gamma(6)*Ho;
-DEdot=mu(1)*Is+mu(2)*Hb+mu(3)*Hv;
-Rdot=gamma(1)*Ia_gamma(2)*In_gamma(3)*Q+gamma(4)*Is+gamma(5)*Hb+gamma(6)*Ho;
-f=[Sdot;Edot;Iadot;Ipdot;Indot;Isdot;Qdot;Hbdot;Hvdot;Ho;DEdot;Rdot];
+Ipdot=p(1)*sigma*E-omega*Ip;
+Inmdot=(1-p(2))*(1-p(3))*omega*Ip-gamma(2)*Inm;
+Ismdot=(1-p(2))*p(3)*omega*Ip-(gamma(2)+q(1))*Ism;
+Insdot=p(2)*(1-p(4))*omega*Ip-gamma(2)*Ins;%*(1-h).*Ins;
+Issdot=p(2)*p(4)*omega*Ip-(gamma(2)+q(2))*Iss;%(1-h).*Iss;
+Qmdot=q(1)*Ism-gamma(4)*Qm;
+Qsdot=q(2)*Iss-gamma(5)*Qs;
+Hdot=gamma(2)*h.*(Ins+Iss)+gamma(5)*h.*Qs-gamma(3)*H-mu.*H;
+%H2dot=h(:,2).*Hb-(mu(3))*Hv-h(:,3).*Hv;
+%Ho=h(:,3).*Hv-gamma(6)*Ho;
+DEdot=mu.*H;
+%Rdot=gamma(1)*Ia+gamma(2)*(Inm+Ism+Ins+Iss)+gamma(3)*H+gamma(4)*Qm+gamma(5)*Qs;
+Rdot=gamma(1)*Ia+gamma(2)*(Inm+Ism)+gamma(2)*(1-h).*Ins+gamma(2)*(1-h).*Iss+gamma(3)*H+gamma(4)*Qm+gamma(5)*(1-h).*Qs;
+f=[Sdot;Edot;Iadot;Ipdot;Inmdot;Insdot;Ismdot;Issdot;Qmdot;Qsdot;Hdot;DEdot;Rdot];
 end
 
 
