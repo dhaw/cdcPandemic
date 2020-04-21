@@ -1,27 +1,40 @@
-function [DEout,Rout]=simulate1subAgeCovid19(sigma,omega,gamma,hosp,mu,pvec,qvec,beta,tvec,Dvec,n,nbar,NNbar,NN0,phi1,phi2,seedvec,S0,tau)
+function [f,g]=simulate1subAgeCovid19(sigma,omega,gamma,hosp,mu,pvec,qvec,beta,tvec,Dvec,n,nbar,NNbar,NN0,phi1,phi2,seedvec,S0,tau)
+%DEout,Rout
+%sigma,omega,gamma,hvec,muvec,pvec,qvec,n,nbar,na,NN,NNbar,NNrep,minNind,maxNind,maxN,Kbar,K1,Cbar,betaS,betaI,betaD,beta3
 solvetype=2;
 plotTau=1;%Plot this year
 zn=zeros(nbar,1);
 if solvetype==2
     lt=length(tvec);
     t0=tvec(1);%tvec(1)=start time for while simulation
-    y0=[S0;repmat(zn,10,1);NNbar-S0];
+    y0=[S0;repmat(zn,11,1);NNbar-S0];
     toutAll=[];
     Sout=[];
+    Hout=Sout;
+    Dout=Sout;
     DEout=zeros(nbar,lt);
     Rout=DEout;
     for i=1:lt-1
         D=Dvec(:,:,i);
         tend=tvec(i+1);
-        [tout,Sclass,DEcum,Rcum,y0]=integr8(sigma,omega,gamma,hosp,mu,pvec,qvec,beta,nbar,NN0,D,phi1,phi2,seedvec,t0,tend,y0);
-        toutAll=[toutAll;tout];
-        Sout=[Sout;Sclass];
+        %{
+        if i==3
+            qvec=1./[4,4];
+        end
+        %}
+        topen=1;%tvec(3);
+        [tout,Sclass,Hclass,Dclass,DEcum,Rcum,y0]=integr8(sigma,omega,gamma,hosp,mu,pvec,qvec,beta,nbar,NN0,D,phi1,phi2,seedvec,t0,tend,y0,topen);
+        toutAll=[toutAll;tout(2:end)];
+        Sout=[Sout;Sclass(2:end,:)];
+        Hout=[Hout;Hclass(2:end,:)];
+        Dout=[Dout;Dclass(2:end,:)];
         DEout(:,i)=DEcum;
         Rout(:,i)=Rcum;
-        if tau==plotTau
-            plotEpi(tout,Sout,n);
-        end
         t0=tend;
+    end
+    if tau==plotTau
+            dodiff=1;
+            plotEpi(toutAll,Sout,Hout,n,dodiff);%-tvec(2)+38
     end
 elseif solvetype==1
     error('Final size calculations not possible')
@@ -29,45 +42,83 @@ elseif solvetype==3
     error('Code not written yet')
     %f=stochSim(y0,beta,gamma,n,nbar,NN,NN0,D,seed,phi1,phi2,tau,alpha);
 end
+%For plots:
+f=toutAll;%(2:end);
+g=sum(Hout,2);%-diff(sum(Sout,2))./diff(toutAll);
+%g=sum(Dout,2);
 end
 
-function [tout,Sclass,DEcum,Rcum,y0new]=integr8(sigma,omega,gamma,hosp,mu,pvec,qvec,beta,nbar,NN0,D,phi1,phi2,seedvec,t0,tend,y0)
-%ncomps=12;%Number of compartments
-    [tout,yout]=ode23(@(t,y)integr8covid(t,y,sigma,omega,gamma,hosp,mu,pvec,qvec,beta,nbar,NN0,D,phi1,phi2,seedvec),[t0,tend],y0);
-    Sclass=yout(:,1:nbar);%Incidence
-    DEcum=yout(end,10*nbar+1:11*nbar);%Deaths
-    Rcum=yout(end,11*nbar+1:end);
+function [tout,Sclass,Hclass,Dclass,DEcum,Rcum,y0new]=integr8(sigma,omega,gamma,hosp,mu,pvec,qvec,beta,nbar,NN0,D,phi1,phi2,seedvec,t0,tend,y0,topen)
+%ncomps=13;%Number of compartments
+    [tout,yout]=ode45(@(t,y)integr8covid(t,y,sigma,omega,gamma,hosp,mu,pvec,qvec,beta,nbar,NN0,D,phi1,phi2,seedvec,topen),[t0,tend],y0);
+    Sclass=yout(:,1:nbar);
+    Hclass=yout(:,10*nbar+1:11*nbar);
+    Dclass=yout(:,11*nbar+1:12*nbar);
+    DEcum=yout(end,11*nbar+1:12*nbar);%Deaths
+    Rcum=yout(end,12*nbar+1:end);
     y0new=yout(end,:)';
 end
 
 
-function f=plotEpi(tout,Y,n)
+function f=plotEpi(tout,Y,H,n,dodiff)
+yvar='Inc./hosp.';%'Susceptibles'; 'Hospitalisations';
 solvetype=2;
-tend=360;%For plot only
+tend=720;%For plot only
+na=size(Y,2)/n;
+cmap=lines(7);
 if solvetype==2
-    Y=-diff(Y,1);
-    tdiff=diff(tout,1);
-    Y=Y./tdiff;
-    tout(1)=[];
+    if dodiff==1
+        Y=-diff(Y,1);
+        tdiff=diff(tout,1);
+        Y=Y./tdiff;
+        tout(1)=[];
+        H(1,:)=[];
+    end
     figure
-    fs=12; lw=2;
-    Yall=[sum(Y(:,1:n),2),sum(Y(:,n+1:2*n),2),sum(Y(:,2*n+1:3*n),2),sum(Y(:,3*n+1:end),2)];
+    fs=10; lw=2;
+    if na==4
+        Yall=[sum(Y(:,1:n),2),sum(Y(:,n+1:2*n),2),sum(Y(:,2*n+1:3*n),2),sum(Y(:,3*n+1:end),2)];
+        Hall=[sum(H(:,1:n),2),sum(H(:,n+1:2*n),2),sum(H(:,2*n+1:3*n),2),sum(H(:,3*n+1:end),2)];
+        %Yall=Y(:,1:n)+Y(:,n+1:2*n)+Y(:,2*n+1:3*n)+Y(:,3*n+1:end);
+    elseif na==5
+        Yall=[sum(Y(:,1:n),2),sum(Y(:,n+1:2*n),2),sum(Y(:,2*n+1:3*n),2),sum(Y(:,3*n+1:4*n),2),sum(Y(:,4*n+1:end),2)];
+    elseif na==3
+        Yall=[sum(Y(:,1:n),2),sum(Y(:,n+1:2*n),2),sum(Y(:,2*n+1:3*n),2)];
+        Hall=[sum(H(:,1:n),2),sum(H(:,n+1:2*n),2),sum(H(:,2*n+1:3*n),2)];
+    else
+        error('Number of age groups not recognised for plotting')
+    end
     %
     %Unlogged plots:
+    h=zeros(1,na);
     hold on
-    plot(tout,Yall,'linewidth',lw);
+    for i=1:na
+        h(i)=plot(tout,Yall(:,i),'linewidth',lw,'color',cmap(i,:));
+        plot(tout,Hall(:,i),'--','linewidth',lw,'color',cmap(i,:));
+    end
+    %plot(tout,Yall,'linewidth',.5,'color',cmap(2,:));
+    %plot(tout,sum(Yall,2),'linewidth',lw,'color','k');
     %}
     %{
     %Logged plots:
     hold on
     semilogy(tout,Yall);
     %}
-    xlabel('Time (days)','FontSize',fs);
-    ylabel('Incidence','FontSize',fs);
+    xlabel('Time (days since 1st Jan)','FontSize',fs);
+    ylabel(yvar,'FontSize',fs);
     set(gca,'FontSize',fs);
-    maxY=max(max(Yall));
+    %maxY=max(max(Yall));
+    maxY=max(max(max(Yall)),max(max(Hall)));
     axis ([0,tend,0,maxY])
-    legend('0-4','5-19','20-64','65+','location','NE')
+    %
+    if na==4
+        legend(h,{'0-4','5-19','20-64','65+'},'location','NE')
+    elseif na==5
+        legend(h,{'0-4','5-17','18-49','50-64','65+'},'location','NE')
+    elseif na==3
+        legend(h,{'0-15','16-64','65+'},'location','NE')
+    end
+    %}
     grid on
     grid minor
     box on
@@ -77,7 +128,7 @@ end
 end
 
 
-function f=integr8covid(t,y,sigma,omega,gamma,h,mu,p,q,beta,nbar,NN0,D,phi1,phi2,seedvec)
+function f=integr8covid(t,y,sigma,omega,gamma,h,mu,p,q,betaIn,nbar,NN0,D,phi1,phi2,seedvec,topen)
 %phi=phi1-phi2*cos(pi*t/180);%Seasonality****
 phi=phi1;
 %%
@@ -85,13 +136,15 @@ S=y(1:nbar);
 E=y(nbar+1:2*nbar);
 Ia=y(2*nbar+1:3*nbar);
 Ip=y(3*nbar+1:4*nbar);
-In=y(4*nbar+1:5*nbar);
-Is=y(5*nbar+1:6*nbar);
-Q=y(6*nbar+1:7*nbar);
-Hb=y(7*nbar+1:8*nbar);
-Hv=y(8*nbar+1:9*nbar);
-Ho=y(9*nbar+1:10*nbar);
-I=Ia+Ip+In+Is+Q;%All infectious
+Inm=y(4*nbar+1:5*nbar);
+Ism=y(5*nbar+1:6*nbar);
+Ins=y(6*nbar+1:7*nbar);
+Iss=y(7*nbar+1:8*nbar);
+Qm=y(8*nbar+1:9*nbar);
+Qs=y(9*nbar+1:10*nbar);
+H=y(10*nbar+1:11*nbar);
+%H2=y(11*nbar+1:12*nbar);
+I=2/3*Ia+Ip+Inm+Ism+Ins+Iss;%All infectious
 %DE=y(10*nbar+1:11*nbar);
 %R=y(11*nbar+1:end);
 %%
@@ -100,21 +153,35 @@ I=Ia+Ip+In+Is+Q;%All infectious
 %else
     %seed1=0;
 %end
+
+beta=betaIn;
+%{
+if t>topen && t<topen+30
+    beta=betaIn*(.25+.75*(t-topen)/30);
+else
+    beta=betaIn;
+end
+%}
+
 Sfoi=phi*(beta*S.*(D*(I./NN0))+seed1);
 %%
 Sdot=-Sfoi;
 Edot=Sfoi-sigma*E;
 Iadot=(1-p(1))*sigma*E-gamma(1)*Ia;
 Ipdot=p(1)*sigma*E-omega*Ip;
-Indot=(1-p(2))*omega*Ip-(gamma(2)+q(1))*In;
-Isdot=p(2)*omega*Ip-(gamma(4)+q(2)+h(1)+mu(1))*Is;
-Qdot=q(1)*In+q(2)*Is-(gamma(3)+h(2))*Q;
-Hbdot=h(1)*Is+h(2)*Q-(gamma(5)+h(2)+mu(2))*Hb;
-Hvdot=h(2)*Hb-(h(3)+mu(3))*Hv;
-Ho=h(3)*Hv-gamma(6)*Ho;
-DEdot=mu(1)*Is+mu(2)*Hb+mu(3)*Hv;
-Rdot=gamma(1)*Ia+gamma(2)*In+gamma(3)*Q+gamma(4)*Is+gamma(5)*Hb+gamma(6)*Ho;
-f=[Sdot;Edot;Iadot;Ipdot;Indot;Isdot;Qdot;Hbdot;Hvdot;Ho;DEdot;Rdot];
+Inmdot=(1-h)*(1-p(3))*omega.*Ip-gamma(2)*Inm;
+Ismdot=(1-h)*p(3)*omega.*Ip-(gamma(2)+q(1))*Ism;
+Insdot=h*(1-p(4))*omega.*Ip-p(2)*Ins;%*(1-h).*Ins;
+Issdot=h*p(4)*omega.*Ip-(p(2)+q(2))*Iss;%(1-h).*Iss;
+Qmdot=q(1)*Ism-gamma(4)*Qm;
+Qsdot=q(2)*Iss-p(2)*Qs;
+Hdot=p(2)*(Ins+Iss+Qs)-gamma(3)*H;
+%H2dot=h(:,2).*Hb-(mu(3))*Hv-h(:,3).*Hv;
+%Ho=h(:,3).*Hv-gamma(6)*Ho;
+DEdot=gamma(3)*mu.*H;
+%Rdot=gamma(1)*Ia+gamma(2)*(Inm+Ism+Ins+Iss)+gamma(3)*H+gamma(4)*Qm+gamma(5)*Qs;
+Rdot=gamma(1)*Ia+gamma(2)*(Inm+Ism)+gamma(3)*(1-mu).*H+gamma(4)*Qm;
+f=[Sdot;Edot;Iadot;Ipdot;Inmdot;Ismdot;Insdot;Issdot;Qmdot;Qsdot;Hdot;DEdot;Rdot];
 end
 
 

@@ -41,7 +41,7 @@ demog=1;
 plotTau=0;
 time=(1:tauend);
 lt=length(time);
-t0=0; tend=480;
+t0=0; tend=720;
 %mu=1/80;%In ODE code
 phi1=1; phi2=0;
 NN0=NNrep; NN0(NNrep==0)=1;
@@ -106,8 +106,19 @@ elseif isdual==3
 end
 %%
 %Create time series of interventions:
+%
+%No intervention:
 tvec=[0,tend];
 Dvec=D;
+%}
+%
+%SIP on then off:
+th1=163.8696;%138.6404;%149.2832;%126.6338;%149.2832;%D>1
+tsip=38;%Days of SIP
+tvec=[0,th1,th1+tsip,tend];
+Dvec=repmat(D,[1,1,3]);
+Dvec(:,:,2)=Dvec(:,:,2)*.55;
+%}
 %%
 if tauend>1
     %INITIAL CONDITION:
