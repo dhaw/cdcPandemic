@@ -1,4 +1,4 @@
-function [f,g]=simulate1subAgeCovid19(sigma,omega,gamma,hosp,mu,pvec,qvec,beta,tvec,Dvec,n,nbar,NNbar,NN0,phi1,phi2,seedvec,S0,tau)
+function [f,g]=simulate1subAgeCovid19(pr,beta,tvec,Dvec,n,nbar,NNbar,NN0,phi1,phi2,seedvec,S0,tau)
 %DEout,Rout
 %sigma,omega,gamma,hvec,muvec,pvec,qvec,n,nbar,na,NN,NNbar,NNrep,minNind,maxNind,maxN,Kbar,K1,Cbar,betaS,betaI,betaD,beta3
 solvetype=2;
@@ -12,24 +12,31 @@ if solvetype==2
     Sout=[];
     Hout=Sout;
     Dout=Sout;
+    Iout=[];
     DEout=zeros(nbar,lt);
     Rout=DEout;
     for i=1:lt-1
         D=Dvec(:,:,i);
         tend=tvec(i+1);
+        %
+        %pr.z=0;
         %{
-        if i==3
-            qvec=1./[4,4];
+        if i>=2%3
+            pr.q1=pr.qnew;%Won't turn off****
+            pr.q2=pr.qnew;
+            %pr.z=pr.znew;
+            pr.odds=pr.oddsnew;
         end
         %}
         topen=1;%tvec(3);
-        [tout,Sclass,Hclass,Dclass,DEcum,Rcum,y0]=integr8(sigma,omega,gamma,hosp,mu,pvec,qvec,beta,nbar,NN0,D,phi1,phi2,seedvec,t0,tend,y0,topen);
+        [tout,Sclass,Hclass,Dclass,DEcum,Rcum,Itot,y0]=integr8(pr,beta,nbar,NNbar,D,phi1,phi2,seedvec,t0,tend,y0,topen);
         toutAll=[toutAll;tout(2:end)];
         Sout=[Sout;Sclass(2:end,:)];
         Hout=[Hout;Hclass(2:end,:)];
         Dout=[Dout;Dclass(2:end,:)];
         DEout(:,i)=DEcum;
         Rout(:,i)=Rcum;
+        Iout=[Iout;Itot];
         t0=tend;
     end
     if tau==plotTau
@@ -45,17 +52,19 @@ end
 %For plots:
 f=toutAll;%(2:end);
 g=sum(Hout,2);%-diff(sum(Sout,2))./diff(toutAll);
+%g=cumsum(Iout);
 %g=sum(Dout,2);
 end
 
-function [tout,Sclass,Hclass,Dclass,DEcum,Rcum,y0new]=integr8(sigma,omega,gamma,hosp,mu,pvec,qvec,beta,nbar,NN0,D,phi1,phi2,seedvec,t0,tend,y0,topen)
+function [tout,Sclass,Hclass,Dclass,DEcum,Rcum,Itot,y0new]=integr8(pr,beta,nbar,NN0,D,phi1,phi2,seedvec,t0,tend,y0,topen)
 %ncomps=13;%Number of compartments
-    [tout,yout]=ode45(@(t,y)integr8covid(t,y,sigma,omega,gamma,hosp,mu,pvec,qvec,beta,nbar,NN0,D,phi1,phi2,seedvec,topen),[t0,tend],y0);
+    [tout,yout]=ode45(@(t,y)integr8covid(t,y,pr,beta,nbar,NN0,D,phi1,phi2,seedvec,topen),[t0,tend],y0);
     Sclass=yout(:,1:nbar);
     Hclass=yout(:,10*nbar+1:11*nbar);
     Dclass=yout(:,11*nbar+1:12*nbar);
     DEcum=yout(end,11*nbar+1:12*nbar);%Deaths
     Rcum=yout(end,12*nbar+1:end);
+    Itot=sum(yout(:,4*nbar+1:8*nbar),2);
     y0new=yout(end,:)';
 end
 
@@ -128,7 +137,7 @@ end
 end
 
 
-function f=integr8covid(t,y,sigma,omega,gamma,h,mu,p,q,betaIn,nbar,NN0,D,phi1,phi2,seedvec,topen)
+function f=integr8covid(t,y,pr,betaIn,nbar,NN0,D,phi1,phi2,seedvec,topen)
 %phi=phi1-phi2*cos(pi*t/180);%Seasonality****
 phi=phi1;
 %%
@@ -144,16 +153,11 @@ Qm=y(8*nbar+1:9*nbar);
 Qs=y(9*nbar+1:10*nbar);
 H=y(10*nbar+1:11*nbar);
 %H2=y(11*nbar+1:12*nbar);
-I=2/3*Ia+Ip+Inm+Ism+Ins+Iss;%All infectious
+I=2/3*Ia+2/3*Ip+Inm+Ism+Ins+Iss;%All infectious
 %DE=y(10*nbar+1:11*nbar);
 %R=y(11*nbar+1:end);
 %%
-%if t<30
-    seed1=seedvec.*S./NN0;
-%else
-    %seed1=0;
-%end
-
+seed1=seedvec.*S./NN0;
 beta=betaIn;
 %{
 if t>topen && t<topen+30
@@ -162,25 +166,44 @@ else
     beta=betaIn;
 end
 %}
-
 Sfoi=phi*(beta*S.*(D*(I./NN0))+seed1);
 %%
 Sdot=-Sfoi;
-Edot=Sfoi-sigma*E;
-Iadot=(1-p(1))*sigma*E-gamma(1)*Ia;
-Ipdot=p(1)*sigma*E-omega*Ip;
-Inmdot=(1-h)*(1-p(3))*omega.*Ip-gamma(2)*Inm;
-Ismdot=(1-h)*p(3)*omega.*Ip-(gamma(2)+q(1))*Ism;
-Insdot=h*(1-p(4))*omega.*Ip-p(2)*Ins;%*(1-h).*Ins;
-Issdot=h*p(4)*omega.*Ip-(p(2)+q(2))*Iss;%(1-h).*Iss;
-Qmdot=q(1)*Ism-gamma(4)*Qm;
-Qsdot=q(2)*Iss-p(2)*Qs;
-Hdot=p(2)*(Ins+Iss+Qs)-gamma(3)*H;
-%H2dot=h(:,2).*Hb-(mu(3))*Hv-h(:,3).*Hv;
-%Ho=h(:,3).*Hv-gamma(6)*Ho;
-DEdot=gamma(3)*mu.*H;
-%Rdot=gamma(1)*Ia+gamma(2)*(Inm+Ism+Ins+Iss)+gamma(3)*H+gamma(4)*Qm+gamma(5)*Qs;
-Rdot=gamma(1)*Ia+gamma(2)*(Inm+Ism)+gamma(3)*(1-mu).*H+gamma(4)*Qm;
+Edot=Sfoi-pr.sigma*E;
+%{
+Iadot=(1-pr.p1)*pr.sigma*E-pr.g1*Ia;
+Ipdot=pr.p1*pr.sigma*E-pr.omega*Ip;
+Inmdot=(1-pr.p2)*(1-pr.p3)*pr.omega.*Ip-pr.g2*Inm;
+Ismdot=(1-pr.p2)*pr.p3*pr.omega.*Ip-(pr.g2+pr.q1)*Ism;
+Insdot=pr.p2*(1-pr.p4)*pr.omega.*Ip-pr.h*Ins;%*(1-h).*Ins;
+Issdot=pr.p2*pr.p4*pr.omega.*Ip-(pr.h+pr.q2)*Iss;%(1-h).*Iss;
+Qmdot=pr.q1*Ism-pr.g4*Qm;
+Qsdot=pr.q2*Iss-pr.h*Qs;
+%}
+%{
+%With quarantine of all infs:
+Iadot=(1-pr.p1)*pr.sigma*E-(pr.g1+pr.q1*pr.z)*Ia;
+Ipdot=pr.p1*pr.sigma*E-(pr.omega+pr.q1*pr.z)*Ip;%q1=q2****
+Inmdot=(1-pr.p2)*(1-pr.p3)*pr.omega.*Ip-(pr.g2+pr.q1*pr.z)*Inm;
+Ismdot=(1-pr.p2)*pr.p3*pr.omega.*Ip-(pr.g2+pr.q1)*Ism;
+Insdot=pr.p2*(1-pr.p4)*pr.omega.*Ip-(pr.h+pr.q2*pr.z)*Ins;%*(1-h).*Ins;
+Issdot=pr.p2*pr.p4*pr.omega.*Ip-(pr.h+pr.q2)*Iss;%(1-h).*Iss;
+Qmdot=pr.q1*(Ia*pr.z+(1-pr.p2)*pr.z.*Ip+Inm*pr.z+Ism)-pr.g4*Qm;
+Qsdot=pr.q2*(pr.p2.*Ip*pr.z+Ins*pr.z+Iss)-pr.h*Qs;
+%}
+%
+Iadot=(1-pr.p1)*pr.sigma*E-(1+pr.odds)*pr.g1*Ia;%2**
+Ipdot=pr.p1*pr.sigma*E-(1+pr.odds)*pr.omega*Ip;%2**
+Inmdot=(1-pr.p2)*(1-pr.p3)*pr.omega.*Ip-pr.g2*Inm;
+Ismdot=(1-pr.p2)*pr.p3*pr.omega.*Ip-(pr.g2+pr.q1)*Ism;
+Insdot=pr.p2*(1-pr.p4)*pr.omega.*Ip-pr.h*Ins;%*(1-h).*Ins;
+Issdot=pr.p2*pr.p4*pr.omega.*Ip-(pr.h+pr.q2)*Iss;%(1-h).*Iss;
+Qmdot=pr.g1*pr.odds*Ia+(1-pr.p2)*pr.omega*pr.odds.*Ip+pr.q1*Ism-pr.g4*Qm;
+Qsdot=pr.p2*pr.omega*pr.odds.*Ip+pr.q2*Iss-pr.h*Qs;
+%}
+Hdot=pr.h*(Ins+Iss+Qs)-pr.g3*H;
+DEdot=pr.g3*pr.mu.*H;
+Rdot=pr.g1*Ia+pr.g2*(Inm+Ism)+pr.g3*(1-pr.mu).*H+pr.g4*Qm;
 f=[Sdot;Edot;Iadot;Ipdot;Inmdot;Ismdot;Insdot;Issdot;Qmdot;Qsdot;Hdot;DEdot;Rdot];
 end
 

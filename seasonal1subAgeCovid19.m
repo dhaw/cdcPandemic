@@ -1,4 +1,4 @@
-function [f,g,D]=seasonal1subAgeCovid19(sigma,omega,gamma,hosp,mu,pvec,qvec,n,nbar,na,NN,NNbar,NNrep,minNind,maxNind,maxN,Kbar,K1,Cbar,betaS,betaI,betaD,beta3)
+function [f,g,D]=seasonal1subAgeCovid19(pr,n,nbar,na,NN,NNbar,NNrep,Din,beta)
 isdual=1;
 solvetype=2;
 numseed=8;
@@ -24,24 +24,12 @@ y0in=sum(y0in,1)';
 %t0shift=tswitch-params(end-2)+120-beforeShift;%****
 %}
 %%
-%isdual: 0=SM, 1=DM, 2=IM
-%solvetype: 1=FSC, 2=ODE, 3=SCM
-ICdepAge=1;
-if isdual==0
-    beta=betaS;
-elseif isdual==1
-    beta=betaD;
-elseif isdual==2
-    beta=betaI;
-else
-    beta=beta3;
-end
 %randFact=.3;
 demog=1;
 plotTau=0;
 time=(1:tauend);
 lt=length(time);
-t0=0; tend=720;
+t0=0; tend=2000;
 %mu=1/80;%In ODE code
 phi1=1; phi2=0;
 NN0=NNrep; NN0(NNrep==0)=1;
@@ -88,36 +76,20 @@ if tauend>1
     %No need to re-define NNbar here
 end
 %%
-Ni=repmat(NNrep,1,nbar); Nj=Ni';
-Niover=1./Ni; Niover(Ni==0)=1;
-Mj=(Kbar')*NNbar;%C in denom?? .*Cbar %(Kbar')*
-Mj(Mj==0)=1;
-Mjover=1./Mj;
-Mjover=repmat(Mjover',nbar,1);
-if isdual==0
-    D=Kbar.*Mjover.*Cbar.*Nj;
-elseif isdual==1
-    D=(K1.*Mjover)*((Kbar').*Cbar);
-    D=D.*Nj;
-elseif isdual==2
-    D=Kbar'.*Niover.*Cbar.*Nj;
-elseif isdual==3
-    D=Kbar.*Cbar;
-end
-%%
 %Create time series of interventions:
 %
+D=Din;
 %No intervention:
 tvec=[0,tend];
 Dvec=D;
 %}
 %
 %SIP on then off:
-th1=163.8696;%138.6404;%149.2832;%126.6338;%149.2832;%D>1
-tsip=38;%Days of SIP
+th1=196.0484;%197.4349;%233.7842;%191.093;%233.7842;%191.093;%233.7842;%D>1
+tsip=800;%38;%Days of SIP
 tvec=[0,th1,th1+tsip,tend];
 Dvec=repmat(D,[1,1,3]);
-Dvec(:,:,2)=Dvec(:,:,2)*.55;
+Dvec(:,:,2)=Dvec(:,:,2)*.75;
 %}
 %%
 if tauend>1
@@ -194,27 +166,21 @@ else
     Z0=zeros(nbar,1);%Option - as input
 end
 %%
-zn=zeros(nbar,1);
 A1=zeros(n,lt);
 A2=A1;
 seed=10^-(numseed);%*NNprob;
-seedvec=zeros(nbar,1); seedvec(2*n+1:3*n)=seed*ones(n,1);
+seedvec=zeros(nbar,1);
+if na>2
+    seedvec(2*n+1:3*n)=seed*ones(n,1);
+else
+    seedvec=seed(ones(nbar,1));
+end
 %seedvec=seed*ones(nbar,1);
 thresh=0;%Remove from ODE solver
 %%
 %SIMULATE (UP TO ATTACK RATES):
 for t=1:lt%t=tau
-if solvetype==1
-    %Final size:
-    addbit=0;%seed;%tend*
-    %If seed=0, no epidemic happens - because use ODE solver for initial condition
-    IC=XODEsolveAllMulti(gamma,NN,n,nbar,NNbar,NNrep,NN0,minNind,maxNind,D,Z0,beta,t,t0,tend,zn,phi1,phi2,seed,2,thresh,alpha,seedvec); IC=IC./NN0;%New IC here (if ever necessary)
-    options=optimset('Display','off');
-    funt=@(Zi)solveZi(Zi,Z0,beta,gamma,D,Nages,addbit);
-    Zsol=fsolve(funt,IC,options);
-else%solvetype=2/3
-    [DEout,Rout]=simulate1subAgeCovid19(sigma,omega,gamma,hosp,mu,pvec,qvec,beta,tvec,Dvec,n,nbar,NNbar,NN0,phi1,phi2,seedvec,NNbar,t);%S0=NNbar (2nd last arg)
-end
+[DEout,Rout]=simulate1subAgeCovid19(pr,beta,tvec,Dvec,n,nbar,NNbar,NN0,phi1,phi2,seedvec,NNbar,t);%S0=NNbar (2nd last arg)
 %nu=Zsol-Z0;
 A1=DEout;%(:,t)=sum(reshape(Zsol./NN0,n,na),2);%Prop immune for spatial cell (before antigenic drift)
 A2=Rout;%(:,t)=sum(reshape(nu./NN0,n,na),2);%AR for spatial cell

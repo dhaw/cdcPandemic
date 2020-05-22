@@ -1,11 +1,16 @@
-function [f,g,z2]=subPandemicSimulation(NNbar,params,xdata,plotComp,plotEpis,ydata,tswitch)%(R0,phi1,phi2,tlag,seednum,tswitch,closureFactor,betacModifier)
-mcmc=0;
-cf=.802;%0.8346;%.802;
-ph2=.0003;
-beta2=1;
-age2mats=1;
+function [f,g,z2]=subPandemicSimulationVax(NNbar,params,xdata,plotComp,plotEpis,ydata,tswitch,vaxparams)%(R0,phi1,phi2,tlag,seednum,tswitch,closureFactor,betacModifier)
+mcmc=1;
+age2mats=0;
 y0in=0; 
 t0shift=0;
+dMonth=[0,243,273,304,334,365,396,424,10^4];%455];%10^4 in case go past April
+%{
+%Vax params:
+vstart=243;
+vrate=.0005;%Per capita doses administered/day
+veff=.6;%beta -> (1-veff)*beta
+vaxparams=[vstart,vrate,veff];
+%}
 %{
 %W2 only:
 t0shift=tswitch-params(end-2)+120;
@@ -76,11 +81,11 @@ relInc=0;%Relative incidence - fraction of age group population - both
 %Fixed parameters:
 seednum=6;
 %tswitch=243;
-closureFactor=cf;%.802;%us;% .5486;%ct .802;%us .6405;%mn .6405; %mn 0.7931;%ca
+closureFactor=.802;%us;% .5486;%ct .802;%us .6405;%mn .6405; %mn 0.7931;%ca
 betacModifier=1;
 adultsDown=1;
 phi1=1;
-phi2=ph2;%.0003;%us .0345;%ct .0003;%us 2.7890e-05;%mn .026;%mn 0.0095;%ca
+phi2=.0003;%us .0345;%ct .0003;%us 2.7890e-05;%mn .026;%mn 0.0095;%ca
 immuneFactor=0;%.3691;%us .3881;%mn .3691;%us 
 tshift=-1;
 seasonality=1;
@@ -94,7 +99,7 @@ relInf=.5;%Data
 R0=1.1804;%1.46/.775;
 gamma=2.0987;%1/2.6
 t0=79.9982;%0;
-tend=720;
+tend=484;%End of April=484
 %%
 %Input parameters:
 Cc=reshape(params(1:1+nbar^2-1),nbar,nbar);
@@ -187,11 +192,8 @@ else
 end
 if age2mats==0
     %Cc(2:3,2:3)=closureFactor/betacModifier*Co(2:3,2:3);
-    if beta2==0
-        Cc(2,2)=closureFactor/betacModifier*Co(2,2);
-    else
-        Cc(2,:)=closureFactor/betacModifier*Co(2,:);
-    end
+    %Cc(2,2)=closureFactor/betacModifier*Co(2,2);
+    Cc(2,:)=closureFactor/betacModifier*Co(2,:);
     %Cc(:,2)=closureFactor/betacModifier*Co(:,2);
 end
 %Calculate betas:
@@ -218,14 +220,14 @@ else
 end
 if ages==4
     zn=zeros(nbar,1);
-    y0=[NNbar-y0in;zn;zn;zn;zn+y0in];
+    y0=[NNbar-y0in;zn;zn;zn;zn;zn+y0in];
     a3out=y0(nbar-1)*immuneFactor*from57;
     y0(4)=y0(4)-a3out; y0(end-nbar-1)=a3out;
     a4out=y0(nbar)*immuneFactor;
     y0(5)=y0(5)-a4out; y0(end-nbar)=a4out;
 elseif ages==5
     zn=zeros(nbar,1);
-    y0=[NNbar-y0in;zn;zn;zn;zn+y0in];
+    y0=[NNbar-y0in;zn;zn;zn;zn;zn+y0in];
     a4out=y0(nbar-1)*immuneFactor*from57;
     y0(4)=y0(4)-a4out; y0(end-nbar-1)=a4out;
     a5out=y0(nbar)*immuneFactor;
@@ -266,9 +268,9 @@ seed=10^(-seednum);
 %Simulate:
 %ODE solver:
 %if solvetype==2
-    [tout,yout]=ode45(@(t,y)integr8all(t,y,betac,betao,gamma,tau,gammabar,nbar,NN0,Dc,Do,seasonality,phi1,phi2,seed,seedOn,hosp,tlag,tswitch,tclose,tv,propSym,relInf,mu),[t0,tend],y0);
+    [tout,yout]=ode45(@(t,y)integr8all(t,y,betac,betao,gamma,tau,gammabar,nbar,NN0,Dc,Do,seasonality,phi1,phi2,seed,seedOn,hosp,tlag,tswitch,tclose,tv,propSym,relInf,mu,vaxparams,dMonth),[t0,tend],y0);
     %Incidence curve in here:
-    Y=yout(:,1:nbar);
+    Y=yout(:,1:nbar)+yout(:,nbar+1:2*nbar);
     Y=-diff(Y,1,1);
     tdiff=diff(tout);
     Y=Y./repmat(tdiff,1,nbar);
@@ -432,7 +434,7 @@ seed=10^(-seednum);
     %}
 end
 %%
-function f=integr8all(t,y,betac,betao,gamma,tau,gammabar,nbar,NNin,Dc,Do,seasonality,phi1,phi2,seed,seedOn,hosp,tlag,tswitch,tclose,tv,propSym,relInf,mu)
+function f=integr8all(t,y,betac,betao,gamma,tau,gammabar,nbar,NNin,Dc,Do,seasonality,phi1,phi2,seed,seedOn,hosp,tlag,tswitch,tclose,tv,propSym,relInf,mu,vaxparams,dMonth)
 %propSym=.55;%Data
 %relInf=.5;%Data
 %mu=[.005,.0072,.04,.079,1.57]'/100;%Data
@@ -449,10 +451,9 @@ else
     beta=betao;
 end
 S=y(1:nbar);
-%I=y(nbar+1:2*nbar);
-%IV=y(2*nbar+1:3*nbar);
-IS=y(nbar+1:2*nbar);
-IA=y(2*nbar+1:3*nbar);
+SV=y(nbar+1:2*nbar);
+IS=y(2*nbar+1:3*nbar);
+IA=y(3*nbar+1:4*nbar);
 if t<seedOn%t>seedOn && t<seedOn+14
     seed1=seed.*S./NNin;
     seed1([1,3:nbar])=0;
@@ -464,7 +465,19 @@ if t<tv
 else
     taux=tau;
 end
+%{
+if t>vaxparams(1)
+    vrate=vaxparams(2);
+else
+    vrate=0;
+end
+%}
+thisMonth=discretize(t-14,dMonth);%-14 - vax delay
+v1=vaxparams(:,thisMonth,1);
+v2=vaxparams(:,thisMonth,2)/30;
 Sfoi=phi*(beta*S.*(XX*((IS+relInf*IA)./NNin)+seed1));
+%SVfoi=phi*(beta*(1-vaxparams(3))*SV.*(XX*((IS+relInf*IA)./NNin)+seed1));
+SVfoi=phi*(beta*(1-v2).*SV.*(XX*((IS+relInf*IA)./NNin)+seed1));
 %{
 Sdot=-Sfoi;
 Idot=Sfoi-gamma*I-.55*taux*I.*hosp;
@@ -472,11 +485,11 @@ IVdot=.55*taux*I.*hosp-gammabar*IV;
 Rdot=gamma*I+gammabar*IV;
 f=[Sdot;Idot;IVdot;Rdot];
 %}
-Sdot=-Sfoi;
-ISdot=propSym*Sfoi-gamma*IS-mu.*IS;%-.55*taux*I.*hosp;
-IAdot=(1-propSym)*Sfoi-gamma*IA;
-%IVdot=.55*taux*I.*hosp-gammabar*IV;
-Rdot=gamma*(IS+IA);%+gammabar*IV;
+Sdot=-Sfoi-v1.*S;
+SVdot=-SVfoi+v1.*S;
+ISdot=propSym*(Sfoi+SVfoi)-gamma*IS-mu.*IS;%-.55*taux*I.*hosp;
+IAdot=(1-propSym)*(Sfoi+SVfoi)-gamma*IA;
+Rdot=gamma*(IS+IA);
 Ddot=mu.*IS;
-f=[Sdot;ISdot;IAdot;Rdot;Ddot];
+f=[Sdot;SVdot;ISdot;IAdot;Rdot;Ddot];
 end

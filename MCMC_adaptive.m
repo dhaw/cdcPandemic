@@ -12,7 +12,7 @@
 % blockinds:  Number of 'epi parameters' (e.g. beta, X2) in x, if we want to vary epi and non-epi parameters as independent 'blocks'. Set blockinds = [] if we want a full covariance matrix
 % displ:      Structure with display options. Set displ = true to show progress
 
-function [xsto, outsto, history, accept_rate] = MCMC_adaptive(F, x0, n, sigma, fixinds, blockind, displ)
+function [xsto, outsto, history, accept_rate,covmat] = MCMC_adaptive(F, x0, n, sigma, fixinds, blockind, displ)
 
 d = length(x0); b = 0.05; sd = sigma*2.4^2/d;
 if ~isempty(fixinds)

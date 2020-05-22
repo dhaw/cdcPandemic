@@ -1,7 +1,8 @@
-function [sigma,omega,gamma,hvec,muvec,pvec,qvec,NN,n,nbar,na,NNbar,NNrep,minNind,maxNind,maxN,Kbar,K1,Cbar,betaS,betaI,betaD,beta3,ages0]=prepFluAgeLocsCovid19(locs,D,stoch,delta,hvec,muvec)%,U)
+function [sigma,omega,gamma,hvec,muvec,pvec,qvec,NN,n,nbar,na,NNbar,NNrep,minNind,maxNind,maxN,Dout,beta,ages0]=prepFluAgeLocsCovid19(locs,D,stoch,delta,hvec,muvec)%,U)
+%[sigma,omega,gamma,hvec,muvec,pvec,qvec,NN,n,nbar,na,NNbar,NNrep,minNind,maxNind,maxN,Kbar,K1,Cbar,betaS,betaI,betaD,beta3,ages0]=prepFluAgeLocsCovid19(locs,D,stoch,delta,hvec,muvec)%,U)
 %stoch=1 for SCM(/ABM)
-gravity=0;
-urbrur=1;
+gravity=1;
+urbrur=0;
 %Parameters:
 aa=.58;
 %aaR=.91;
@@ -19,18 +20,13 @@ thosp=5;%Symp to hosp
 %muvec=muvec/thosp;%Proportion to rate
 pvec=[2/3,1/thosp,1,1];%****p(2)=hospitalisation rate****
 qvec=1./[inf,inf];%Control
-Texp=4;%Latent
-Tonset=5-Texp;%Onset delay - Texp
+Texp=5;%Latent
+Tonset=1;%5-Texp;%Onset delay - Texp
 TserInt=10;
 Tinf1=TserInt-Texp;
 Thosp=10;
-Tinf=[Tinf1,Tinf1-Tonset,Thosp,1];%1/gammas 
-%if qvec(1)>0
-    Tinf(4)=Tinf1-Tonset-4;%1/qvec(1);
-%end
-%Thosp=[3,6,9.6];%1/h's
-%Tdeath=[5,6,10];
-%Tdeath(3)=Admission/death delay - admission/critical delay
+Tinf=[5,5,5,5];%[Tinf1,Tinf1-Tonset,Thosp,1];%1/gammas 
+%Tinf(4)=Tinf1-Tonset-4;%1/qvec(1);
 %Death after hospitalisation - allows for prolonged illness - ?
 %%
 sigma=1/Texp;
@@ -38,8 +34,8 @@ omega=1/Tonset;
 gamma=1./Tinf;
 %hosp=1./Thosp;
 %mu=1./Tdeath;
-gammaEff=gamma(1);%1/(p(1)*(Ti1+Ti2+Ti3+q(1)*Ti4+Ti5)+(p(2)+p(3))*Tinf1);
-R0=2.5*(1-(1-p(1))/3);
+%gammaEff=gamma(1);%1/(p(1)*(Ti1+Ti2+Ti3+q(1)*Ti4+Ti5)+(p(2)+p(3))*Tinf1);
+R0=2.5;%/(1-(1-pvec(3))/3);
 %
 celldist=1;%km
 a1immobile=0;
@@ -97,21 +93,27 @@ nbar=n*na;
 NN=sum(D,2);
 NNbar=reshape(D,nbar,1);
 if urbrur==1
-    hvec=kron(hvec,ones(2,1));
-    muvec=kron(muvec,ones(2,1));
+    hvec=kron(hvec,ones(n,1));
+    muvec=kron(muvec,ones(n,1));
+    Ckron=[1,.05;.05,.75];
+else
+    Ckron=1;
 end
 %%
 %Debug stuff:
 %hvec=zeros(nbar,1);
+gammaEff=(1-pvec(1))*gamma(1)*ones(na*n,1)+pvec(1)*((1-hvec)*gamma(2)+hvec*pvec(2));
+Vinv=diag(1./gammaEff);
 %%
 %Kernel:
-%{
-L=locs*140;%Approx conversion to km
-[x1,x2]=meshgrid(L(:,1),L(:,1));
-x=(x1-x2).^2;
-[y1,y2]=meshgrid(L(:,2),L(:,2));
-y=(y1-y2).^2;
-r=sqrt(x+y)*celldist;
+if gravity==1
+    L=locs*140;%Approx conversion to km
+    [x1,x2]=meshgrid(L(:,1),L(:,1));
+    x=(x1-x2).^2;
+    [y1,y2]=meshgrid(L(:,2),L(:,2));
+    y=(y1-y2).^2;
+    r=sqrt(x+y)*celldist;
+end
 %}
 %%
 %Age:
@@ -229,16 +231,41 @@ NNover=1./NNrep; NNover(NN==0)=1;
 Njover=repmat(NNover',nbar,1);
 
 DS=Sstart.*Kbar.*Mjover.*Cbar;
-GS=1/gammaEff*DS;
+%GS=1/gammaEff*DS;
+GS=DS*Vinv;
 
 DI=SstartFrac.*Kbar'.*Cbar;
-GI=1/gammaEff*DI;
+%GI=1/gammaEff*DI;
+GI=DI*Vinv;
 
 DD=(Sstart.*K1.*Mjover)*(Kbar'.*Cbar);
-GD=1/gammaEff*DD;
+%GD=1/gammaEff*DD;
+GD=DD*Vinv;
+%%
+%isdual=1 - equivalent here
+Ceff=kron(C,Ckron);%Urb/rural mixing here
+Ceff=Ceff.*repmat(NNbar,1,n*na)./repmat(NNbar',n*na,1);
+%
+ntot=n*na;
+F=zeros(7*ntot,7*ntot);
+F(1:ntot,ntot+1:end)=[repmat(2/3*Ceff,1,2),repmat(Ceff,1,4)];
+onesn=ones(ntot,1);
+vvec=[sigma*onesn;gamma(1)*onesn;omega*onesn;gamma(2)*onesn;gamma(2)*onesn;pvec(2)*onesn;pvec(2)*onesn];
+V=diag(vvec);
+V(ntot+1:2*ntot,1:ntot)=diag(-sigma*(1-pvec(1))*onesn);
+V(2*ntot+1:3*ntot,1:ntot)=diag(-sigma*pvec(1)*onesn);
+V(3*ntot+1:4*ntot,2*ntot+1:3*ntot)=diag(-(1-pvec(3)).*(1-hvec));
+V(4*ntot+1:5*ntot,2*ntot+1:3*ntot)=diag(-pvec(3).*(1-hvec));
+V(5*ntot+1:6*ntot,2*ntot+1:3*ntot)=diag(-(1-pvec(4)).*hvec);
+V(6*ntot+1:7*ntot,2*ntot+1:3*ntot)=diag(-pvec(4).*hvec);
+GD=F/V;
+Dout=Ceff;
+%}
+%%
 
 D3=Sstart.*Kbar.*Cbar.*Njover;
-G3=1/gammaEff*D3;
+%G3=1/gammaEff*D3;
+G3=D3*Vinv;
 
 d=eigs(GS,1); R0a=max(d); betaS=R0/R0a;
 d=eigs(GI,1); R0a=max(d); betaI=R0/R0a;
@@ -246,4 +273,5 @@ d=eigs(GD,1); R0a=max(d); betaD=R0/R0a;
 d=eigs(G3,1); R0a=max(d); beta3=R0/R0a;
 %}
 ages0=ages;
+beta=betaD;
 end
