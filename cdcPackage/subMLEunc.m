@@ -9,7 +9,7 @@ Cvec=reshape(Cc,25,1)';
 %}
 params0=thetaIn;
 
-options=optimset('MaxFunEvals',10000);%('Display','off');%,'MaxIter',10000,'TolX',10^-30,'TolFun',10^-30);
+options=optimset('MaxFunEvals',100000);%('Display','off');%,'MaxIter',10000,'TolX',10^-30,'TolFun',10^-30);
 %[theta,fval,exitflag,output,grad,hessian]=fminunc('cdcLhoodsW5',params0,options,ydataNX);
 fun=@(params)subLhoods(NNbar,params,xdata,ydataNX);
 theta=fminunc(fun,params0,options);

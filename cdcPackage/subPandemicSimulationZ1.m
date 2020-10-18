@@ -1,10 +1,12 @@
-function [f,g,z2]=subPandemicSimulation(NNbar,params,xdata,plotComp,plotEpis,ydata,tswitch)%(R0,phi1,phi2,tlag,seednum,tswitch,closureFactor,betacModifier)
-mcmc=0;
+function [f,g,z2]=subPandemicSimulationZ1(NNbar,params,xdata,plotComp,plotEpis,ydata,tswitch,startTime,y0in,I0in)%(R0,phi1,phi2,tlag,seednum,tswitch,closureFactor,betacModifier)
+mcmc=1;
 cf=.6063;%.8045;%.693;%.802;%.802;%0.8346;%.802;
 ph2=.0009;%.0003;%.0003;%1.1827e-06;%.0003;
+%
+beta2=1;
 age2mats=0;
-beta2=0;
-y0in=0; 
+%
+%y0in=0; 
 t0shift=0;
 %{
 %W2 only:
@@ -76,11 +78,11 @@ relInc=0;%Relative incidence - fraction of age group population - both
 %Fixed parameters:
 seednum=6;
 %tswitch=243;
-closureFactor=cf;
+closureFactor=cf;%.802;%us;% .5486;%ct .802;%us .6405;%mn .6405; %mn 0.7931;%ca
 betacModifier=1;
 adultsDown=1;
 phi1=1;
-phi2=ph2;
+phi2=ph2;%.0003;%us .0345;%ct .0003;%us 2.7890e-05;%mn .026;%mn 0.0095;%ca
 immuneFactor=0;%.3691;%us .3881;%mn .3691;%us 
 tshift=-1;
 seasonality=1;
@@ -94,38 +96,20 @@ relInf=.5;%Data
 R0=1.1804;%1.46/.775;
 gamma=2.0987;%1/2.6
 t0=79.9982;%0;
-tend=720;%End of April=484
+tend=720;
 %%
 %Input parameters:
 Cc=reshape(params(1:1+nbar^2-1),nbar,nbar);
 %Exclude for MCMC:
 if mcmc==0
     if age2mats==1%So far only relevant for MLE fit
-        phi2=params(1);
-        Cc1=reshape(params(2:2+nbar^2-1),nbar,nbar);
-        Cc2=reshape(params(2+nbar^2:2+2*nbar^2-1),nbar,nbar);
-    else
-        %
-        closureFactor=params(1);
-        %betacModifier=params(2);
-        %adultsDown=params(3);
-        phi2=params(2);
-        Cc=reshape(params(3:3+nbar^2-1),nbar,nbar);
-        %}
-        %{
-        %W2 only:
-        phi2=params(1);
-        Cc=reshape(params(2:2+nbar^2-1),nbar,nbar);
-        %}
-    end
-else
-    if age2mats==1%So far only relevant for MLE fit
         %{
         Cc1=reshape(params(1:nbar^2),nbar,nbar);
         Cc2=reshape(params(nbar^2+1:2*nbar^2),nbar,nbar);
         %}
         %
-        phi2=ph2;
+        phi2=ph2;%2.7890e-05;%mn
+        %phi2=.0391;%mn
         Cc1=reshape(params(1:nbar^2),nbar,nbar);
         Cc2=reshape(params(nbar^2+1:2*nbar^2),nbar,nbar);
         %
@@ -160,7 +144,7 @@ end
 immuneFactor=params(end-5);
 propSym=params(end-4);
 relInf=params(end-3);
-t0=params(end-2)-120+t0shift;
+t0=startTime;%params(end-2)-120+t0shift;
 R0=params(end-1);
 gamma=params(end);
 %}
@@ -225,7 +209,7 @@ if ages==4
     y0(5)=y0(5)-a4out; y0(end-nbar)=a4out;
 elseif ages==5
     zn=zeros(nbar,1);
-    y0=[NNbar-y0in;zn;zn;zn;zn+y0in];
+    y0=[NNbar-y0in-I0in;I0in;zn;zn;zn+y0in];
     a4out=y0(nbar-1)*immuneFactor*from57;
     y0(4)=y0(4)-a4out; y0(end-nbar-1)=a4out;
     a5out=y0(nbar)*immuneFactor;
@@ -440,7 +424,7 @@ function f=integr8all(t,y,betac,betao,gamma,tau,gammabar,nbar,NNin,Dc,Do,seasona
 %propSym=.55;%Data
 %relInf=.5;%Data
 %mu=[.005,.0072,.04,.079,1.57]'/100;%Data
-if seasonality==1 %&& t>60
+if seasonality==1 && t>60
     phi=phi1-phi2*cos(pi*(t-tlag)/180);
 else
     phi=phi1-phi2;
@@ -459,7 +443,7 @@ IS=y(nbar+1:2*nbar);
 IA=y(2*nbar+1:3*nbar);
 if t<seedOn%t>seedOn && t<seedOn+14
     seed1=seed.*S./NNin;
-    %seed1([1,2,4:nbar])=0;
+    seed1([1,3:nbar])=0;
 else
     seed1=0;
 end

@@ -1,9 +1,6 @@
-function [f,g,z2]=subPandemicSimulation(NNbar,params,xdata,plotComp,plotEpis,ydata,tswitch)%(R0,phi1,phi2,tlag,seednum,tswitch,closureFactor,betacModifier)
-mcmc=0;
-cf=.6063;%.8045;%.693;%.802;%.802;%0.8346;%.802;
-ph2=.0009;%.0003;%.0003;%1.1827e-06;%.0003;
+function [f,g,z2]=subPandemicSimulationOld(NNbar,params,xdata,plotComp,plotEpis,ydata,tswitch)%(R0,phi1,phi2,tlag,seednum,tswitch,closureFactor,betacModifier)
+mcmc=1;
 age2mats=0;
-beta2=0;
 y0in=0; 
 t0shift=0;
 %{
@@ -76,11 +73,11 @@ relInc=0;%Relative incidence - fraction of age group population - both
 %Fixed parameters:
 seednum=6;
 %tswitch=243;
-closureFactor=cf;
+closureFactor=.802;%us;% .5486;%ct .802;%us .6405;%mn .6405; %mn 0.7931;%ca
 betacModifier=1;
 adultsDown=1;
 phi1=1;
-phi2=ph2;
+phi2=.0003;%us .0345;%ct .0003;%us 2.7890e-05;%mn .026;%mn 0.0095;%ca
 immuneFactor=0;%.3691;%us .3881;%mn .3691;%us 
 tshift=-1;
 seasonality=1;
@@ -94,7 +91,7 @@ relInf=.5;%Data
 R0=1.1804;%1.46/.775;
 gamma=2.0987;%1/2.6
 t0=79.9982;%0;
-tend=720;%End of April=484
+tend=720;
 %%
 %Input parameters:
 Cc=reshape(params(1:1+nbar^2-1),nbar,nbar);
@@ -125,9 +122,9 @@ else
         Cc2=reshape(params(nbar^2+1:2*nbar^2),nbar,nbar);
         %}
         %
-        phi2=ph2;
+        phi2=2.7890e-05;%mn
+        %phi2=.0391;%mn
         Cc1=reshape(params(1:nbar^2),nbar,nbar);
-        Cc2=reshape(params(nbar^2+1:2*nbar^2),nbar,nbar);
         %
         %Better 1st wave - p2mn2c:
         %{
@@ -144,7 +141,7 @@ else
                     6.5318    0.4683    1.5042    0.6019    0.8633;
                     2.1013    0.6041    0.8915    0.4044    3.1849];
         %}
-        %{
+        %
          Cc2=Cc1.*[3.0748    1.1730    0.8862    0.0583    4.7613;
                 19.1443    0.9805    0.5643  351.9906  184.0789;
                 0.9829    0.7847    0.4540    0.0071    0.5806;
@@ -187,11 +184,8 @@ else
 end
 if age2mats==0
     %Cc(2:3,2:3)=closureFactor/betacModifier*Co(2:3,2:3);
-    if beta2==0
-        Cc(2,2)=closureFactor/betacModifier*Co(2,2);
-    else
-        Cc(2,:)=closureFactor/betacModifier*Co(2,:);
-    end
+    %Cc(2,2)=closureFactor/betacModifier*Co(2,2);
+    Cc(2,:)=closureFactor/betacModifier*Co(2,:);
     %Cc(:,2)=closureFactor/betacModifier*Co(:,2);
 end
 %Calculate betas:
@@ -335,10 +329,6 @@ seed=10^(-seednum);
             fall=ftimes*[f1,f2,f3,f4,f5];
         end
         %fall(1:simCut,:)=[];
-        %Avoid bug****
-        if size(fall,1)<xdata(end)
-            fall(end+1:xdata(end),1:ages)=0;
-        end
         if hospOut==1
             f=fall(xdata,:)./repmu;
         else
@@ -440,7 +430,7 @@ function f=integr8all(t,y,betac,betao,gamma,tau,gammabar,nbar,NNin,Dc,Do,seasona
 %propSym=.55;%Data
 %relInf=.5;%Data
 %mu=[.005,.0072,.04,.079,1.57]'/100;%Data
-if seasonality==1 %&& t>60
+if seasonality==1 && t>60
     phi=phi1-phi2*cos(pi*(t-tlag)/180);
 else
     phi=phi1-phi2;
@@ -459,7 +449,7 @@ IS=y(nbar+1:2*nbar);
 IA=y(2*nbar+1:3*nbar);
 if t<seedOn%t>seedOn && t<seedOn+14
     seed1=seed.*S./NNin;
-    %seed1([1,2,4:nbar])=0;
+    seed1([1,3:nbar])=0;
 else
     seed1=0;
 end
