@@ -1,5 +1,5 @@
 function f=heMakeDs(NN,Z)
-baseRate=.1;
+baseRate=1;
 ln=length(NN);
 NNsum=sum(NN);
 NNrel=NN./NNsum;%Column

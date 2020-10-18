@@ -2,11 +2,11 @@ function f=vaxTestPlot(NNbar,xdata,xsto,vaxparams)
 mu=[393.0256 999.3054 702.6867 406.0680 177.1958];
 sig=[129.6984 329.7708 231.8866 134.0024 58.4746];
 na=length(mu);
-tswitchvec=(0:20);%Weeks
+tswitchvec=(0:10);%Weeks
 lt=length(tswitchvec);
 %
 burn=10000;
-int=100;
+int=500;
 NNtot=sum(NNbar);
 prior=xsto(burn+1:int:end,:);
 lp=size(prior,1);
@@ -49,7 +49,7 @@ xlabel('Delay (weeks)','FontSize',fs);
 ylabel('h_2/1000 population');
 set(gca,'FontSize',fs);
 maxY=max(max(y3));
-axis ([0,lt-1,0,maxY])
+axis ([tswitchvec(1),tswitchvec(end),0,maxY])
 legend(h,{'0-4','5-17','18-49','50-64','65+'},'location','NE')
 grid on
 grid minor

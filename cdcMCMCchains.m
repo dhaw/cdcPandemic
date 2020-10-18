@@ -6,7 +6,7 @@ figure;
  for i=1:2
      subplot(2,1,i);
      %plot(1001:length(xsto4),xsto4(1001:end,i));
-     plot(burn+1:length(xsto4),[xsto4(burn+1:end,i)]);%,xsto4b(burn+1:end,i)]);
+     plot(burn+1:length(xsto4),xsto4(burn+1:end,i));%,xsto4b(burn+1:end,i)]);
      axis tight;
      title(names{i});
  end

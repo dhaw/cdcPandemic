@@ -1,7 +1,15 @@
-function [f,g]=heRunCovid19(pr,n,nbar,na,NN,NNbar,NNrep,Din,beta)
+function [f,g]=heRunCovid19(pr,n,nbar,na,NN,NNbar,NNrep,Dout,beta,Xit,tvec,plotTau)
+%Inputs up to beta are outputs from hePrepCovid19
+%Xit - column vector with proportion of each sector open at each
+%intervention point. 
+%tvec - vector of time points including tvev(1)=t0, tvec(2)=lockdown staet,
+%tvec(end)=end of simulation. 
+%plotTau=1 to plot output. 
+%Note: this is set to 0 in any optimisation protocol to avoid a crash due
+%to rendering loads of images! 
 isdual=1;
 solvetype=2;
-numseed=8;
+numseed=3;
 phi1=1; phi2=0;
 eps=0;
 randic=0;
@@ -26,10 +34,10 @@ y0in=sum(y0in,1)';
 %%
 %randFact=.3;
 demog=1;
-plotTau=0;
+%plotTau=0;
 time=(1:tauend);
 lt=length(time);
-t0=0; tend=2000;
+t0=0; tend=366;
 %mu=1/80;%In ODE code
 phi1=1; phi2=0;
 NN0=NNrep; NN0(NNrep==0)=1;
@@ -78,28 +86,45 @@ end
 %%
 %Create time series of interventions:
 %
-D=Din;
+D=Dout;
 %No intervention:
+%{
 tvec=[0,tend];
 Dvec=D;
 %}
-%
+%%
 %HE:
-tvec=[-150,92,122,153,183,214,245,275,306,336];%,tend];
+%Need to add age structure in here - only uses n, not na****
+%tvec=[-180,92,122,153,183,tend];%,214,366];%245,275,306,336,tend];
+lt=length(tvec);
+XitMat=reshape(Xit,nbar-1,lt-3);
+NNvec=repmat(NNbar(1:end-1),1,lt-3).*XitMat;
+NNworkSum=sum(NNvec,1);
+NNvec(end+1,:)=sum(NNbar)-NNworkSum;
+%{
 lt=length(tvec);
 NNvec=repmat(NNbar,1,lt-1);%Full heterogeneity
 Dvec=repmat(D,[1,1,lt-1]);
 NNmat=reshape(NNbar,n,na);%Include at home****
 NNworkSum=sum(NNmat(1:n-1,:),1);
-%
-if lt>2
-for i=2:lt-1
-    factor=(i-2)/(lt-2);
-    NNmat=[factor*NNmat(1:n-1,:);NNmat(n,:)+(1-factor)*NNworkSum];
-    NNvec(:,i)=reshape(NNmat,nbar,1);
+%}
+NNvec=[NNbar,[zeros(length(NNbar)-1,1);sum(NNbar)],NNvec];
+NNfrac=NNvec(1:end-1,2)./NNbar(1:end-1,1);%Xit for lockdown
+Dvec=repmat(D,[1,1,lt-1]);
+Dvec(:,:,2)=heMakeDs(NNvec(:,2),NNfrac);%,0);
+%if lt>3
+for i=3:lt-1
+    %NNfrac=NNvec(1:end-1,i)./NNbar(1:end-1,1);
+    Dvec(:,:,i)=heMakeDs(NNvec(:,i),XitMat(:,i-2));%NNfrac,Xit((i-3)*nbar+4));%Can reduce contact rates here too
+    %{
+    %Toy example:
+    factor=(i-2)/(lt-2);%Includes making lockdown matrix
+    NNmati=[factor*NNmat(1:n-1,:);NNmat(n,:)+(1-factor)*NNworkSum];
+    NNvec(:,i)=reshape(NNmati,nbar,1);
     Dvec(:,:,i)=heMakeDs(NNvec(:,i),factor*eye(10));%Can reduce conbtact rates here too
+    %}
 end
-end
+%end
 %}
 %%
 if tauend>1
@@ -185,7 +210,7 @@ thresh=0;%Remove from ODE solver
 %%
 %SIMULATE (UP TO ATTACK RATES):
 for t=1:lt%t=tau
-[DEout,Rout]=heSimCovid19(pr,beta,tvec,Dvec,n,nbar,NNvec,phi1,phi2,seedvec,NNvec(:,1),t);%S0=NNbar (2nd last arg)
+[DEout,Rout]=heSimCovid19(pr,beta,tvec,Dvec,n,nbar,NNvec,phi1,phi2,seedvec,NNvec(:,1),t,plotTau);%S0=NNbar (2nd last arg)
 %nu=Zsol-Z0;
 A1=DEout;%(:,t)=sum(reshape(Zsol./NN0,n,na),2);%Prop immune for spatial cell (before antigenic drift)
 A2=Rout;%(:,t)=sum(reshape(nu./NN0,n,na),2);%AR for spatial cell
