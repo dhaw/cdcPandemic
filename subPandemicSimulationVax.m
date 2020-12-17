@@ -88,16 +88,17 @@ relInf=.5;%Data
 R0=1.1804;%1.46/.775;
 gamma=2.0987;%1/2.6
 t0=79.9982;%0;
-tend=720;%End of April=484
+tend=365;%End of April=484
 %%
 %Input parameters:
 Cc=reshape(params(1:1+nbar^2-1),nbar,nbar);
 %Exclude for MCMC:
 if mcmc==0
-    if age2mats==1%So far only relevant for MLE fit
+    if age2mats==1
         phi2=params(1);
         tlag=params(2);
-        Cc2=reshape(params(3:3+nbar^2-1),nbar,nbar);%****Cc1 or Cc2
+        
+        %Cc1=reshape(params(3:3+nbar^2-1),nbar,nbar);%****Cc1 or Cc2
         %Cc1=reshape(params(3+nbar^2:3+2*nbar^2-1),nbar,nbar);
         %{
         Cc1=[7.5103    5.2350    6.0040    1.9520    0.8168
@@ -105,19 +106,30 @@ if mcmc==0
         1.1629    2.6155    8.8204    2.8596    0.4641;
         0.2796    0.5974    2.9078    1.9930    0.3906;
         0.0773    0.1406    0.1250    0.1165    0.1830];
+        %}
+        %{
         Cc2=Cc1-[1.1966    0.3022    0.3647    0.2790    0.0021;
                 0.1075    5.0989    1.0993    0.9611    0.0299;
                 0.0602    0.1877    0.3022    0.0978    0.0136;
                 0.0163    0.0823    0.0691    0.0695    0.0305;
                 0.0003    0.0013    0.0035    0.0045    0.0220];
         %}
-        %
+        %{
         Cc1=Cc2+[1.1966    0.3022    0.3647    0.2790    0.0021;
                 0.1075    5.0989    1.0993    0.9611    0.0299;
                 0.0602    0.1877    0.3022    0.0978    0.0136;
                 0.0163    0.0823    0.0691    0.0695    0.0305;
                 0.0003    0.0013    0.0035    0.0045    0.0220];
         %}
+        %{
+        Cc1=Cc2;
+        Cc1(1)=Cc1(1)+1.4149;
+        Cc1(7)=Cc1(7)+6.1702;
+        %}
+        Cc1=reshape(params(3:3+nbar^2-1),nbar,nbar);%Cc2;%Open=Cc1
+        Cc2=Cc1;
+        Cc2(1)=Cc1(1)-1.4149;
+        Cc2(7)=Cc1(7)-6.1702;
         %{
         Cc1=Cc2.*[1.1895    1.0613    1.0647    1.1667    1.0026
                 1.0551    1.3228    1.1959    1.5986    1.0196
@@ -132,7 +144,7 @@ if mcmc==0
         %adultsDown=params(3);
         closureFactor=params(1);
         phi2=params(2);
-        tlag=0;%-31;%params(2);
+        tlag=31;%params(2);
         Cc=reshape(params(3:3+nbar^2-1),nbar,nbar);
         %}
         %{
@@ -249,14 +261,19 @@ Sstart=repmat(NNbar,1,nbar);%Ni
 Mj=NNbar'; Mj(Mj==0)=1; Mjover=1./Mj;
 Mjover=repmat(Mjover,nbar,1);%1/Nj
 if foi==1
+    %{
     Dc=(Sstart.*Mjover).*Cc;
+    
+    Dc=[propSym*Dc,propSym*relInf*Dc;(1-propSym)*Dc,(1-propSym)*relInf*Dc];
     %Dc=Sstart*Cc/NN;
-    Gc=1/gamma*Dc;
+    Gc=Dc/gamma;%1/gamma*Dc;
     d=eigs(Gc,1); R0c=max(d); %betac=R0/R0c*betacModifier;
+    %}
     Do=(Sstart.*Mjover).*Co;
+    Do=[propSym*Do,propSym*relInf*Do;(1-propSym)*Do,(1-propSym)*relInf*Do];
     Go=1/gamma*Do;
     d=eigs(Go,1); R0o=max(d); betao=R0/R0o;
-%}
+    %}
 else
     Dc=Sstart.*Cc/NN;
     Gc=1/gamma*Dc;
@@ -267,14 +284,14 @@ else
 end
 if ages==4
     zn=zeros(nbar,1);
-    y0=[NNbar-y0in;zn;zn;zn;zn;zn+y0in];
+    y0=[NNbar-y0in;zn;zn;zn;zn;zn;zn+y0in];
     a3out=y0(nbar-1)*immuneFactor*from57;
     y0(4)=y0(4)-a3out; y0(end-nbar-1)=a3out;
     a4out=y0(nbar)*immuneFactor;
     y0(5)=y0(5)-a4out; y0(end-nbar)=a4out;
 elseif ages==5
     zn=zeros(nbar,1);
-    y0=[NNbar-y0in;zn;zn;zn;zn;zn+y0in];
+    y0=[NNbar-y0in;zn;zn;zn;zn;zn;zn+y0in];
     a4out=y0(nbar-1)*immuneFactor*from57;
     y0(4)=y0(4)-a4out; y0(end-nbar-1)=a4out;
     a5out=y0(nbar)*immuneFactor;
@@ -317,7 +334,7 @@ seed=10^(-seednum);
 %if solvetype==2
     [tout,yout]=ode45(@(t,y)integr8all(t,y,betac,betao,gamma,tau,gammabar,nbar,NN0,Dc,Do,seasonality,phi1,phi2,seed,seedOn,hosp,tlag,tswitch,tclose,tv,propSym,relInf,mu,vaxparams,dMonth),[t0,tend],y0);
     %Incidence curve in here:
-    Y=yout(:,1:nbar)+yout(:,nbar+1:2*nbar);
+    Y=yout(:,1:nbar)+yout(:,nbar+1:2*nbar)+yout(:,2*nbar+1:3*nbar);
     Y=-diff(Y,1,1)*propSym;
     tdiff=diff(tout);
     Y=Y./repmat(tdiff,1,nbar);
@@ -327,7 +344,10 @@ seed=10^(-seednum);
     else
         g=[tout,sum(Y,2)];
     end
-    z2=sum(Y(tout>tswitchAttack,:),1);
+    %z2=sum(Y(tout>tswitchAttack,:),1);
+    tsw=find(tout>tswitchAttack);
+    tsw=tsw(1);
+    z2=yout(end,5*nbar+1:6*nbar)+yout(end,6*nbar+1:end)-yout(tsw,5*nbar+1:6*nbar)-yout(tsw,6*nbar+1:end);
     if relInc==1
     if byAge==1
         NNdiv=repmat(NNbar',size(Y,1),1);
@@ -440,6 +460,9 @@ seed=10^(-seednum);
             box on
             hold off
         end
+        
+        %z2=ftimes*sum(fall(simVec>34,:),1);
+        
     else
         error('Adjust for hospitalisations as input')
         fall=ftimes*accumarray(tmonth,Y);
@@ -486,7 +509,7 @@ function f=integr8all(t,y,betac,betao,gamma,tau,gammabar,nbar,NNin,Dc,Do,seasona
 %relInf=.5;%Data
 %mu=[.005,.0072,.04,.079,1.57]'/100;%Data
 if seasonality==1 %&& t>60
-    phi=phi1+phi2*cos(pi*(t-tlag)/180);
+    phi=phi1+phi2*cos(2*pi*(t-tlag)/365);
 else
     phi=phi1-phi2;
 end
@@ -498,9 +521,10 @@ else
     beta=betao;
 end
 S=y(1:nbar);
-SV=y(nbar+1:2*nbar);
-IS=y(2*nbar+1:3*nbar);
-IA=y(3*nbar+1:4*nbar);
+SVH=y(nbar+1:2*nbar);
+SV=y(2*nbar+1:3*nbar);
+IS=y(3*nbar+1:4*nbar);
+IA=y(4*nbar+1:5*nbar);
 if t<seedOn%t>seedOn && t<seedOn+14
     seed1=seed.*S./NNin;
     %seed1([1,2,4:nbar])=0;
@@ -520,11 +544,11 @@ else
 end
 %}
 thisMonth=discretize(t-14,dMonth);%-14 - vax delay
-v1=vaxparams(:,thisMonth,1);
-v2=vaxparams(:,thisMonth,2)/30;
-Sfoi=phi*(beta*S.*(XX*((IS+relInf*IA)./NNin)+seed1));
+v1=vaxparams(:,thisMonth,1)/30;
+v2=vaxparams(:,thisMonth,2);
+Sfoi=phi*(beta*(XX*((IS+relInf*IA)./NNin)+seed1));
 %SVfoi=phi*(beta*(1-vaxparams(3))*SV.*(XX*((IS+relInf*IA)./NNin)+seed1));
-SVfoi=phi*(beta*(1-v2).*SV.*(XX*((IS+relInf*IA)./NNin)+seed1));
+SVfoi=phi*(beta*(1-v2).*(XX*((IS+relInf*IA)./NNin)+seed1));
 %{
 Sdot=-Sfoi;
 Idot=Sfoi-gamma*I-.55*taux*I.*hosp;
@@ -532,13 +556,14 @@ IVdot=.55*taux*I.*hosp-gammabar*IV;
 Rdot=gamma*I+gammabar*IV;
 f=[Sdot;Idot;IVdot;Rdot];
 %}
-Sdot=-Sfoi-v1.*S;
-SVdot=-SVfoi+v1.*S;
-ISdot=propSym*(Sfoi+SVfoi)-gamma*IS-mu.*IS;%-.55*taux*I.*hosp;
-IAdot=(1-propSym)*(Sfoi+SVfoi)-gamma*IA;
+Sdot=-Sfoi.*S-v1.*S;
+SVHdot=-Sfoi.*SVH+v1.*S-SVH/14;%14 days to work
+SVdot=SVH/14-SVfoi.*SV;
+ISdot=propSym*(Sfoi.*(S+SVH)+SVfoi.*SV)-gamma*IS-mu.*IS;%-.55*taux*I.*hosp;
+IAdot=(1-propSym)*(Sfoi.*(S+SVH)+SVfoi.*SV)-gamma*IA;
 Rdot=gamma*(IS+IA);
 Ddot=mu.*IS;
-f=[Sdot;SVdot;ISdot;IAdot;Rdot;Ddot];
+f=[Sdot;SVHdot;SVdot;ISdot;IAdot;Rdot;Ddot];
 end
 %{
 %Vax params:
