@@ -8,8 +8,8 @@ mumult=1;
 sigmult=1;
 %Fit to subset of data:
 %
-threshl=17;%23;%17;%17;%Lower (included in fit)
-threshu=34;%52;%34;%52;%Upper
+threshl=17;%23;%23;%17;%17;%Lower (included in fit)
+threshu=52;%34;%52;%34;%52;%Upper
 tswitch=35-threshl+1;
 
 ydataNX(xdata<threshl,:)=[];
@@ -18,7 +18,7 @@ ydataNX(xdata>threshu,:)=[];
 xdata(xdata>threshu)=[];
 
 maxinc=max(max(ydataNX));
-thresh=1*floor(max(max(ydataNX))/10);
+thresh=.1*floor(max(max(ydataNX))/10);
 
 %{
 ydataNX(11:15,:)=[];%thresh1=21 %10:16

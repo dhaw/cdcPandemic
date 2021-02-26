@@ -20,7 +20,7 @@ C=[1.9200    0.4268    0.5260    0.2554    0.1665;
 C=reshape(C,25,1);
 age2mats=0;
 
-cut=34;%34;%Cut from here +1
+cut=52;%34;%Cut from here +1
 ydataNX(xdata>cut,:)=[];
 xdata(xdata>cut)=[];
 %{
@@ -35,6 +35,7 @@ blockind=[];
 displ=false;
 
 %
+%This one for paper
 plim=[.3,0;%1,.4;
     31,-31;%.2,0;%35,-5;%60,-30;%1,0;%XX
     .4,0;
@@ -94,7 +95,7 @@ if age2mats==1
     %plim=[[1.2*Cvec1,.8*Cvec1];plim']';
     x0=[thetac(1:2),Cvec1',Cvec2',thetac(end-5:end)];%+.2*(rand(1,length(thetac)-1)-.5).*thetac(2:end);
 else
-    Cvec=thetac(3:27)';
+    Cvec=C;%thetac(3:27)';
     %{
     %From C - set cut=34
     plim=[[1.1*Cvec,.9*Cvec];plim']';

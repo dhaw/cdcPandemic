@@ -52,7 +52,7 @@ elseif ages==5
     0.1260    0.4516    1.9047    1.5044    1.9544];
     %}
     %Cc=ones(5);
-    mu=[.005,.0072,.04,.079,1.57]'/100;%Data
+    mu=zeros(5,1);%[.005,.0072,.04,.079,1.57]'/100;%Data
     tdays=7;%Days per week
     %simCut=16;%Cut this many weeks from start of 'year
     legString={'0-4','5-17','18-49','50-64','65+'};
@@ -269,6 +269,7 @@ if foi==1
     Gc=Dc/gamma;%1/gamma*Dc;
     d=eigs(Gc,1); R0c=max(d); %betac=R0/R0c*betacModifier;
     %}
+    %
     Do=(Sstart.*Mjover).*Co;
     Do=[propSym*Do,propSym*relInf*Do;(1-propSym)*Do,(1-propSym)*relInf*Do];
     Go=1/gamma*Do;
@@ -347,7 +348,8 @@ seed=10^(-seednum);
     %z2=sum(Y(tout>tswitchAttack,:),1);
     tsw=find(tout>tswitchAttack);
     tsw=tsw(1);
-    z2=yout(end,5*nbar+1:6*nbar)+yout(end,6*nbar+1:end)-yout(tsw,5*nbar+1:6*nbar)-yout(tsw,6*nbar+1:end);
+    z2=yout(end,5*nbar+1:6*nbar)-yout(tsw,5*nbar+1:6*nbar);%+yout(end,6*nbar+1:end)-yout(tsw,6*nbar+1:end);
+    z2=z2*propSym;
     if relInc==1
     if byAge==1
         NNdiv=repmat(NNbar',size(Y,1),1);
